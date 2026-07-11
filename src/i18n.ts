@@ -55,7 +55,7 @@ const sv = {
   // Info page
   'info.title': 'Om spelen',
   'info.close': 'Stäng',
-  'info.intro': 'Varje variant bygger på ett etablerat testparadigm från experimentalpsykologi eller idrottsvetenskap och mäter en egen del av hand–öga-koordinationen. Skuggade varianter är under utveckling.',
+  'info.intro': 'Varje spel bygger på ett etablerat testparadigm från experimentalpsykologi eller idrottsvetenskap och mäter en egen del av hand–öga-koordinationen.',
   'variant.rising.info': 'Bubblor stiger i jämn takt underifrån och ska fångas innan de flyter ur bild. Eftersom målen rör sig testas förmågan att läsa av bana och fart och möta målet i rörelse — en enkel form av interception, samma förmåga som att fånga en boll.',
   'variant.random.info': 'Mål dyker upp på slumpmässiga platser och försvinner efter en stund. Grundtestet för visuomotorisk reaktion: upptäck, sikta, träffa. Ger reaktionstid, precision och träffsäkerhet över hela skärmen.',
   'variant.grid.info': 'Målen fördelas jämnt över nio skärmzoner i slumpad ordning så att alla riktningar får lika många mål. Det gör zonstatistiken och riktningsanalysen meningsfull — till exempel syns det om ena sidan är långsammare eller mer felbenägen.',
@@ -266,7 +266,7 @@ const en: typeof sv = {
   // Info page
   'info.title': 'About the games',
   'info.close': 'Close',
-  'info.intro': 'Each variant is based on an established test paradigm from experimental psychology or sports science and measures its own aspect of hand-eye coordination. Shadowed variants are under development.',
+  'info.intro': 'Each game is based on an established test paradigm from experimental psychology or sports science and measures its own aspect of hand-eye coordination.',
   'variant.rising.info': 'Bubbles rise steadily from below and must be caught before they float out of view. Because the targets move, this tests your ability to read trajectory and speed and meet a target in motion — a simple form of interception, the same skill as catching a ball.',
   'variant.random.info': 'Targets appear at random positions and vanish after a while. The baseline test of visuomotor reaction: detect, aim, hit. Yields reaction time, precision and hit rate across the whole screen.',
   'variant.grid.info': 'Targets are distributed evenly across nine screen zones in shuffled order, so every direction gets equal exposure. That is what makes the zone statistics and directional analysis meaningful — revealing, for instance, whether one side is slower or more error-prone.',

@@ -7,6 +7,7 @@
     <meta name="description" content="Free game-based test of hand-eye coordination and reaction time, designed for professionals in occupational therapy, physiotherapy, cognition and health." />
     <meta name="robots" content="index, follow" />
     <meta name="google-site-verification" content="smalkweCXCWhHIr3nwW1A4Sp7k6jqf6O1bcg0cK6UK4" />
+    <meta name="msvalidate.01" content="68BF17D9C762485015CEAB4A1A7688DC" />
     <meta name="author" content="Norrtou Creations" />
     <link rel="canonical" href="https://norrtou.github.io/HEC/" />
     <meta name="theme-color" content="#07070b" />
@@ -88,7 +89,22 @@
         <h1 id="splash-title" class="splash-logo">HEC</h1>
         <p class="splash-sub" id="i18n-splash-sub">Measure your hand-eye coordination</p>
 
-        <div class="variant-picker" role="radiogroup" aria-label="Choose game variant" id="variant-picker"></div>
+        <!-- Static English content so the variants are crawlable without JS;
+             buildVariantPicker() replaces this with the localized, interactive version. -->
+        <div class="variant-picker" role="radiogroup" aria-label="Choose game variant" id="variant-picker">
+          <button class="variant-card" type="button"><h3>Rising bubbles</h3><p>Bubbles rise from below — hit them before they float out of view.</p></button>
+          <button class="variant-card" type="button"><h3>Random pop</h3><p>Bubbles appear at random anywhere on screen.</p></button>
+          <button class="variant-card" type="button"><h3>Grid</h3><p>A 3×3 grid of zones — hit the right one as fast as you can.</p></button>
+          <button class="variant-card" type="button"><h3>Go / No-Go</h3><p>Pop green bubbles, leave red ones — measures response inhibition.</p></button>
+          <button class="variant-card" type="button"><h3>Fitts tapping</h3><p>Targets of varying size and distance — pointing throughput in bits/s.</p></button>
+          <button class="variant-card" type="button"><h3>Finger tapping</h3><p>Tap a static target as fast as you can — raw motor speed.</p></button>
+          <button class="variant-card" type="button"><h3>Timing</h3><p>Hit the bubble exactly as it crosses the ring — moving-target timing.</p></button>
+          <button class="variant-card" type="button"><h3>Number trail</h3><p>Tap the bubbles in numeric order — visual scanning and flexibility.</p></button>
+          <button class="variant-card" type="button"><h3>Stop signal</h3><p>The bubble may turn red just after — can you hold back?</p></button>
+          <button class="variant-card" type="button"><h3>Memory sequence</h3><p>Bubbles flash in order — reproduce the sequence from memory.</p></button>
+          <button class="variant-card" type="button"><h3>Pursuit</h3><p>Keep your pointer on a moving bubble — continuous tracking.</p></button>
+          <button class="variant-card" type="button"><h3>Odd one out</h3><p>One bubble differs from the rest — find it and tap it.</p></button>
+        </div>
 
         <div class="splash-note">
           <p id="i18n-note-compare"><strong>Compare fairly:</strong> use the same device, browser and pointer (mouse, pen, tablet or touch) between rounds — the hardware affects the measurements.</p>
@@ -124,7 +140,23 @@
           <h2 id="info-title">About the games</h2>
           <button id="btn-close-info" class="btn btn-quiet" aria-label="Close">✕</button>
         </header>
-        <div id="info-body" class="settings-body"></div>
+        <!-- Static English content so the game descriptions are crawlable without JS;
+             buildInfoBody() replaces this with the localized, icon-decorated version on open. -->
+        <div id="info-body" class="settings-body">
+          <p class="info-intro">Each game is based on an established test paradigm from experimental psychology or sports science and measures its own aspect of hand-eye coordination.</p>
+          <section class="info-item"><h3>Rising bubbles</h3><p>Bubbles rise steadily from below and must be caught before they float out of view. Because the targets move, this tests your ability to read trajectory and speed and meet a target in motion — a simple form of interception, the same skill as catching a ball.</p></section>
+          <section class="info-item"><h3>Random pop</h3><p>Targets appear at random positions and vanish after a while. The baseline test of visuomotor reaction: detect, aim, hit. Yields reaction time, precision and hit rate across the whole screen.</p></section>
+          <section class="info-item"><h3>Grid</h3><p>Targets are distributed evenly across nine screen zones in shuffled order, so every direction gets equal exposure. That is what makes the zone statistics and directional analysis meaningful — revealing, for instance, whether one side is slower or more error-prone.</p></section>
+          <section class="info-item"><h3>Go / No-Go</h3><p>Two kinds of bubbles: pop the green ones, leave the red ones alone. A classic Go/No-Go paradigm measuring response inhibition — the ability to hold back an already-prepared movement. The metrics are the rate of incorrect taps on red targets (commission errors) and how reaction time is affected by having to choose.</p></section>
+          <section class="info-item"><h3>Fitts tapping</h3><p>Targets of varying size and distance following Fitts' law (1954), the standard method for measuring pointing performance (ISO 9241-9). The result is summarised as throughput in bits per second — a single comparable number capturing the whole speed-precision trade-off.</p></section>
+          <section class="info-item"><h3>Finger tapping</h3><p>Tap a large stationary target as many times as you can. Equivalent to the classic finger tapping test from the Halstead-Reitan battery, measuring raw motor speed and rhythm consistency, with no aiming or decision component.</p></section>
+          <section class="info-item"><h3>Timing</h3><p>A moving bubble must be hit exactly as it crosses a marked ring. Measures coincidence anticipation — the ability to predict where a moving target will be — with the timing error in milliseconds as the metric. A classic in sports science (the Bassin timer), where ball-sport athletes tend to excel.</p></section>
+          <section class="info-item"><h3>Number trail</h3><p>Six labelled bubbles appear at once and must be tapped in order; every other wave is numbers only (1–6) and every other alternates numbers and letters (1-A-2-B). Based on the Trail Making Test: link time in the number waves measures visual scanning, and the difference against the alternating waves (B−A) isolates cognitive flexibility. Out-of-order taps count as sequence errors.</p></section>
+          <section class="info-item"><h3>Stop signal</h3><p>Like Go/No-Go, but the stop signal arrives only a moment after the target appears, with the delay adapting to your ability. Yields the SSRT (stop-signal reaction time) — the sharpest established measure of how quickly an initiated action can be cancelled.</p></section>
+          <section class="info-item"><h3>Memory sequence</h3><p>Bubbles flash in a sequence that must then be reproduced in the same order; the length grows until you fail. A touch-screen version of Corsi block-tapping (1972), the standard measure of visuospatial short-term memory.</p></section>
+          <section class="info-item"><h3>Pursuit</h3><p>Keep your finger or pointer on a bubble moving along a path. Equivalent to the classic pursuit rotor task, measuring continuous tracking — time on target and deviation — rather than discrete taps.</p></section>
+          <section class="info-item"><h3>Odd one out</h3><p>The screen fills with 6–18 bubbles, exactly one of which differs. In easy waves it differs by a single feature (a ring) and "pops out" — search time barely depends on the count. In hard waves a combination of two features (ring and dot) is required, forcing a serial search. Based on Treisman &amp; Gelade's classic visual search paradigm (1980); the headline measure is the search slope in milliseconds per item. The difference is form-based, never color-based.</p></section>
+        </div>
       </div>
     </div>
 
