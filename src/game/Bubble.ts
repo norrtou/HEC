@@ -28,6 +28,11 @@ export class Bubble {
   ssdMs?: number;
   /** glow boost until this timestamp (Corsi presentation flash) */
   highlightUntil = 0;
+  /** visual search: form features and wave metadata */
+  featureRing = false;
+  featureDot = false;
+  searchSetSize?: number;
+  searchKind?: 'feature' | 'conjunction';
 
   state: BubbleState = 'growing';
   stateStart: number;

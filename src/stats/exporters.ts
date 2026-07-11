@@ -23,6 +23,7 @@ export function exportCsv(stats: SessionStats): void {
     'trial_id', 'variant', 'result', 'reaction_time_ms', 'error_px', 'error_mm',
     'target_x_px', 'target_y_px', 'target_radius_px', 'hit_x_px', 'hit_y_px',
     'zone', 'pointer_type', 'spawn_time_ms', 'resolved_time_ms', 'timing_error_ms', 'stop_signal_delay_ms',
+    'search_set_size', 'search_kind',
   ].join(',');
   const pxPerMm = stats.meta.pxPerMm;
   const rows = stats.trials.map((t) =>
@@ -38,6 +39,8 @@ export function exportCsv(stats: SessionStats): void {
       Math.round(t.spawnTime * 10) / 10, Math.round(t.resolvedTime * 10) / 10,
       t.timingErrorMs ?? '',
       t.stopSignalDelayMs ?? '',
+      t.search?.setSize ?? '',
+      t.search?.kind ?? '',
     ].join(','),
   );
   // Summary block as trailing comment lines keeps single-file convenience without breaking CSV parsers that skip '#'.

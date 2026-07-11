@@ -109,6 +109,10 @@ export class GameSession {
     b.order = point.order;
     b.wave = point.wave;
     b.waveKind = point.waveKind;
+    b.featureRing = !!point.featureRing;
+    b.featureDot = !!point.featureDot;
+    b.searchSetSize = point.searchSetSize;
+    b.searchKind = point.searchKind;
     if (point.stopAfterMs !== undefined) {
       // Cap the delay so the signal always fires with time left to react to it.
       b.ssdMs = Math.round(Math.min(point.stopAfterMs, lifetimeMs * 0.75));
@@ -316,6 +320,10 @@ export class GameSession {
       trailStep:
         b.order !== undefined && b.wave !== undefined && b.waveKind !== undefined
           ? { wave: b.wave, step: b.order, kind: b.waveKind }
+          : undefined,
+      search:
+        b.searchSetSize !== undefined && b.searchKind !== undefined
+          ? { setSize: b.searchSetSize, kind: b.searchKind }
           : undefined,
     };
     this.trials.push(trial);

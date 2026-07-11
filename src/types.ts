@@ -2,9 +2,9 @@
 
 export type GameVariantId =
   | 'rising' | 'random' | 'grid'
-  // Planned variants — listed (shadowed) in the menu before they are built:
   | 'gonogo' | 'fitts' | 'tapping' | 'anticipation'
-  | 'trails' | 'stopsignal' | 'corsi' | 'pursuit';
+  | 'trails' | 'stopsignal' | 'corsi' | 'pursuit'
+  | 'search';
 
 export type PointerKind = 'mouse' | 'touch' | 'pen' | 'unknown';
 
@@ -101,6 +101,8 @@ export interface TrialRecord {
   trailStep?: { wave: number; step: number; kind: 'A' | 'B' };
   /** Stop-signal variant: delay before the stop signal fired (stop trials only). */
   stopSignalDelayMs?: number;
+  /** Visual search variant: how many bubbles were on screen and which search type. */
+  search?: { setSize: number; kind: 'feature' | 'conjunction' };
 }
 
 /** A raw, cheap-to-capture sample pushed onto the measurement queue immediately on pointerdown. */
@@ -151,6 +153,18 @@ export interface SessionStats {
     rightMissRatePct: number;
     topMissRatePct: number;
     bottomMissRatePct: number;
+  };
+  /** Present only for the visual search variant. */
+  search?: {
+    /** mean search time when the target pops out (single feature) */
+    featureMeanMs: number | null;
+    /** mean search time when a feature conjunction forces serial search */
+    conjunctionMeanMs: number | null;
+    /** regression slope of search time on set size — ms per extra item */
+    featureSlopeMsPerItem: number | null;
+    conjunctionSlopeMsPerItem: number | null;
+    /** taps on distractor bubbles */
+    errors: number;
   };
   /** Present only for the pursuit tracking variant. Classic pursuit-rotor measures. */
   pursuit?: {

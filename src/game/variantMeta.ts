@@ -117,4 +117,13 @@ export const VARIANT_META: VariantMeta[] = [
       '<path d="M3 13.5c2.8-5.5 5.7-5.5 8.5 0s5.7 5.5 8.5 0"/>' +
       '<circle cx="11.5" cy="13.5" r="2" fill="currentColor" stroke="none"/>',
   },
+  {
+    // Visual search: a magnifier over one odd dot among plain ones.
+    id: 'search',
+    implemented: true,
+    icon:
+      '<circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 5.5 5.5"/>' +
+      '<circle cx="10" cy="10" r="1.8" fill="currentColor" stroke="none"/>' +
+      '<g fill="currentColor" stroke="none" opacity="0.55"><circle cx="20" cy="5" r="1.3"/><circle cx="4.5" cy="20" r="1.3"/></g>',
+  },
 ];

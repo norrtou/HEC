@@ -23,7 +23,8 @@ type TileId =
   | 'linkA' | 'linkB' | 'flex' | 'seqErr'
   | 'ssrt' | 'stopSuccess' | 'ssd'
   | 'corsiSpan' | 'corsiSeqs'
-  | 'tot' | 'dist' | 'rms';
+  | 'tot' | 'dist' | 'rms'
+  | 'searchSlopeC' | 'searchSlopeF' | 'searchMeanC' | 'searchMeanF' | 'searchErrors';
 
 /**
  * Per-variant tile layout: the paradigm's headline measure comes first (and is
@@ -43,6 +44,7 @@ const TILE_ORDER: Record<GameVariantId, TileId[]> = {
   stopsignal: ['ssrt', 'stopSuccess', 'ssd', 'medianRt', 'hits', 'false'],
   corsi: ['corsiSpan', 'corsiSeqs'],
   pursuit: ['tot', 'dist', 'rms'],
+  search: ['searchSlopeC', 'searchSlopeF', 'searchMeanC', 'searchMeanF', 'searchErrors', 'false'],
 };
 
 /** Variants where targets are spread over the screen and can be missed — only there do zone accuracy and directional bias mean anything. */
@@ -58,6 +60,7 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
   const ss = stats.stopsignal;
   const co = stats.corsi;
   const pu = stats.pursuit;
+  const se = stats.search;
   // In the inhibition variants only the green targets are tappable, so name them.
   const hitsLabel = v === 'gonogo' || v === 'stopsignal' ? t('stats.hitsGo') : t('stats.hits');
 
@@ -96,6 +99,11 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
     tot: () => (pu ? tile(t('stats.pursuitTot'), pu.timeOnTargetPct !== null ? `${pu.timeOnTargetPct}` : '–', '%') : null),
     dist: () => (pu ? tile(t('stats.pursuitDist'), f(pu.meanDistMm), 'mm') : null),
     rms: () => (pu ? tile(t('stats.pursuitRms'), f(pu.rmsDistMm), 'mm') : null),
+    searchSlopeC: () => (se ? tile(t('stats.searchSlopeC'), f(se.conjunctionSlopeMsPerItem), 'ms/obj') : null),
+    searchSlopeF: () => (se ? tile(t('stats.searchSlopeF'), f(se.featureSlopeMsPerItem), 'ms/obj') : null),
+    searchMeanC: () => (se ? tile(t('stats.searchMeanC'), f(se.conjunctionMeanMs), 'ms') : null),
+    searchMeanF: () => (se ? tile(t('stats.searchMeanF'), f(se.featureMeanMs), 'ms') : null),
+    searchErrors: () => (se ? tile(t('stats.searchErrors'), `${se.errors}`) : null),
   };
 
   const tiles = TILE_ORDER[v].map((id) => defs[id]()).filter((x): x is string => x !== null);

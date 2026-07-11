@@ -140,6 +140,8 @@ const loop = new GameLoop((dtMs, now) => {
         highContrast: s.accessibility.highContrastTargets,
         distractor: b.distractor,
         label: b.label,
+        featureRing: b.featureRing,
+        featureDot: b.featureDot,
       });
     }
     particles.render(ctx);

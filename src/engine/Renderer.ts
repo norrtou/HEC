@@ -56,6 +56,10 @@ export interface BubbleVisual {
   distractor?: boolean;
   /** centered text on the bubble (Trail Making numbers/letters) */
   label?: string;
+  /** inner ring feature (visual search) — form-based so it never relies on color */
+  featureRing?: boolean;
+  /** center dot feature (visual search) */
+  featureDot?: boolean;
 }
 
 export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void {
@@ -95,6 +99,23 @@ export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void
     ctx.moveTo(-d, -d);
     ctx.lineTo(d, d);
     ctx.stroke();
+  }
+
+  if (b.featureRing) {
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = Math.max(1.5, r * 0.1);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  if (b.featureDot) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(2, r * 0.16), 0, Math.PI * 2);
+    ctx.fill();
   }
 
   if (b.label) {

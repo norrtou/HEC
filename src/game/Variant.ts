@@ -1,5 +1,6 @@
 import type { GameVariantId, TrialRecord } from '../types';
 import type { Bubble } from './Bubble';
+import { BUBBLE_PALETTE } from '../engine/Renderer';
 
 export interface CorsiReport {
   kind: 'corsi';
@@ -45,6 +46,11 @@ export interface SpawnPoint {
   waveKind?: 'A' | 'B';
   /** stop-signal variant: turn into a no-go target this many ms after spawn */
   stopAfterMs?: number;
+  /** visual search: form features and wave metadata */
+  featureRing?: boolean;
+  featureDot?: boolean;
+  searchSetSize?: number;
+  searchKind?: 'feature' | 'conjunction';
 }
 
 export interface PlayArea {
@@ -671,6 +677,117 @@ export const PursuitVariant: GameVariant = (() => {
   };
 })();
 
+/**
+ * Visual search (Treisman & Gelade, 1980): each wave shows one odd bubble
+ * among distractors. Feature waves: the target alone carries an inner ring —
+ * it "pops out" and search time barely depends on set size. Conjunction
+ * waves: the target combines ring AND dot while every distractor has exactly
+ * one of them — binding two features forces a serial search, so time grows
+ * with set size. The regression slope (ms/item) per condition is the classic
+ * measure. Both features are form-based, so color vision is never required.
+ */
+export const SearchVariant: GameVariant = (() => {
+  const SET_SIZES = [6, 12, 18];
+
+  let bag: { kind: 'feature' | 'conjunction'; setSize: number }[] = [];
+  const refill = () => {
+    bag = (['feature', 'conjunction'] as const).flatMap((kind) => SET_SIZES.map((setSize) => ({ kind, setSize })));
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  let pending: SpawnPoint[] = [];
+  let aliveInWave = 0;
+  let clearWave = false;
+  let waveColor = 0;
+
+  const generateWave = (area: PlayArea, radius: number): void => {
+    if (bag.length === 0) refill();
+    const { kind, setSize } = bag.pop()!;
+    const r = Math.max(16, radius * 0.85);
+    const minX = area.marginPx + r;
+    const maxX = area.w - area.marginPx - r;
+    const minY = area.topSafeMarginPx + r;
+    const maxY = area.h - area.marginPx - r;
+    const placed: { x: number; y: number }[] = [];
+    for (let i = 0; i < setSize; i++) {
+      let x = 0;
+      let y = 0;
+      for (let tries = 0; tries < 250; tries++) {
+        x = rand(minX, maxX);
+        y = rand(minY, maxY);
+        if (placed.every((p) => Math.hypot(p.x - x, p.y - y) > r * 2.3)) break;
+      }
+      placed.push({ x, y });
+    }
+    const color = BUBBLE_PALETTE[waveColor++ % BUBBLE_PALETTE.length];
+    const targetIndex = Math.floor(Math.random() * setSize);
+    pending = placed.map((p, i) => {
+      const isTarget = i === targetIndex;
+      // Feature wave: only the target has the ring. Conjunction wave: the
+      // target has ring+dot, distractors alternate ring-only / dot-only.
+      const ring = kind === 'feature' ? isTarget : isTarget || i % 2 === 0;
+      const dot = kind === 'feature' ? false : isTarget || i % 2 === 1;
+      return {
+        x: p.x,
+        y: p.y,
+        vy: 0,
+        radius: r,
+        color,
+        order: isTarget ? 1 : 0,
+        featureRing: ring,
+        featureDot: dot,
+        searchSetSize: setSize,
+        searchKind: kind,
+      };
+    });
+    aliveInWave = 0;
+  };
+
+  return {
+    id: 'search',
+    // Whole wave on screen at once, self-paced: no per-bubble timeout.
+    overrides: { maxConcurrent: 18, spawnIntervalMs: 0, lifetimeMultiplier: 1e6 },
+    reset() {
+      bag = [];
+      pending = [];
+      aliveInWave = 0;
+      clearWave = false;
+      waveColor = 0;
+    },
+    canSpawn() {
+      return pending.length > 0 || aliveInWave === 0;
+    },
+    nextSpawn(area, radius, _seq) {
+      if (pending.length === 0) generateWave(area, radius);
+      aliveInWave++;
+      return pending.shift()!;
+    },
+    acceptHit(order) {
+      if (order !== 1) return false; // distractor: search error, wave continues
+      aliveInWave = 0;
+      clearWave = true;
+      return true;
+    },
+    onUpdate(now, bubbles) {
+      if (!clearWave) return;
+      clearWave = false;
+      // Target found: fade the remaining distractors without recording misses.
+      for (const b of bubbles) {
+        if (b.state === 'alive' || b.state === 'growing') {
+          b.state = 'expiring';
+          b.stateStart = now;
+        }
+      }
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
@@ -684,4 +801,5 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   stopsignal: StopSignalVariant,
   corsi: CorsiVariant,
   pursuit: PursuitVariant,
+  search: SearchVariant,
 };

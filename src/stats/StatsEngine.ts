@@ -124,6 +124,42 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
 
+  // Visual search: mean search time and the search-slope (least-squares
+  // regression of search time on set size, in ms/item) per condition. A flat
+  // feature slope with a steep conjunction slope is the classic signature.
+  let search: SessionStats['search'];
+  if (input.variant === 'search') {
+    const slope = (points: { x: number; y: number }[]): number | null => {
+      const xs = points.map((p) => p.x);
+      if (points.length < 2 || new Set(xs).size < 2) return null;
+      const mx = mean(xs)!;
+      const my = mean(points.map((p) => p.y))!;
+      let num = 0;
+      let den = 0;
+      for (const p of points) {
+        num += (p.x - mx) * (p.y - my);
+        den += (p.x - mx) ** 2;
+      }
+      return num / den;
+    };
+    const points = hits
+      .filter((t) => t.search && t.reactionTimeMs !== null)
+      .map((t) => ({ kind: t.search!.kind, x: t.search!.setSize, y: t.reactionTimeMs! }));
+    const feat = points.filter((p) => p.kind === 'feature');
+    const conj = points.filter((p) => p.kind === 'conjunction');
+    const fMean = mean(feat.map((p) => p.y));
+    const cMean = mean(conj.map((p) => p.y));
+    const fSlope = slope(feat);
+    const cSlope = slope(conj);
+    search = {
+      featureMeanMs: fMean !== null ? Math.round(fMean) : null,
+      conjunctionMeanMs: cMean !== null ? Math.round(cMean) : null,
+      featureSlopeMsPerItem: fSlope !== null ? Math.round(fSlope * 10) / 10 : null,
+      conjunctionSlopeMsPerItem: cSlope !== null ? Math.round(cSlope * 10) / 10 : null,
+      errors: input.sequenceErrors ?? 0,
+    };
+  }
+
   // Stop-signal: race-model SSRT = mean go-RT − mean SSD. The staircase keeps
   // stop success near 50%, where this estimate is valid.
   let stopsignal: SessionStats['stopsignal'];
@@ -290,6 +326,7 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
               input.report.rmsDistPx !== null ? Math.round((input.report.rmsDistPx / pxPerMm) * 100) / 100 : null,
           }
         : undefined,
+    search,
     stopsignal,
     trails,
     anticipation,

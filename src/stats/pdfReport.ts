@@ -158,6 +158,13 @@ export function exportPdf(stats: SessionStats): void {
   // The variant's own headline measures lead the table; generic rows follow
   // and are dropped entirely when they carry nothing for this variant.
   const rows: [string, string][] = [
+    ...(stats.search
+      ? ([[
+          t('pdf.row.search'),
+          `${stats.search.conjunctionSlopeMsPerItem ?? '–'} / ${stats.search.featureSlopeMsPerItem ?? '–'} ms/item · ` +
+            `${stats.search.conjunctionMeanMs ?? '–'} / ${stats.search.featureMeanMs ?? '–'} ms · ${stats.search.errors} err`,
+        ]] as [string, string][])
+      : []),
     ...(stats.pursuit
       ? ([[
           t('pdf.row.pursuit'),
