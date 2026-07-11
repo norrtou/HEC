@@ -208,7 +208,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (!settingsEl.hidden) closeSettings();
     else if (!infoEl.hidden) closeInfo();
-    else if (statsPanel.classList.contains('open')) toggleStatsPanel(false);
+    else if (cancelCountdown) {
+      cancelCountdown();
+      splash.hidden = false;
+    } else if (statsPanel.classList.contains('open')) toggleStatsPanel(false);
   }
 });
 
@@ -290,11 +293,59 @@ function closeInfo(): void {
 }
 $('btn-close-info').addEventListener('click', closeInfo);
 
+// ---------- Pre-round countdown ----------
+const countdownEl = $('countdown');
+const countdownTask = $('countdown-task');
+const countdownNum = $('countdown-num');
+let cancelCountdown: (() => void) | null = null;
+
+/** Shows the task sentence + 3-2-1-Go over the game screen, then calls onDone. The session (and its timers) is only created after the countdown, so nothing is measured before "Go". */
+function runCountdown(onDone: () => void): void {
+  const s = store.get();
+  countdownTask.textContent = t(`variant.${s.variant}.play` as Parameters<typeof t>[0]);
+  countdownEl.hidden = false;
+  const steps = [
+    { text: '3', ms: 750, final: false },
+    { text: '2', ms: 750, final: false },
+    { text: '1', ms: 750, final: false },
+    { text: t('countdown.go'), ms: 650, final: true },
+  ];
+  let i = 0;
+  let timer = 0;
+  const show = (): void => {
+    const step = steps[i++];
+    countdownNum.textContent = step.text;
+    // Restart the pop animation for every tick.
+    countdownNum.classList.remove('tick');
+    void countdownNum.offsetWidth;
+    countdownNum.classList.add('tick');
+    audio.playCountTick(step.final);
+    timer = window.setTimeout(i < steps.length ? show : () => {
+      countdownEl.hidden = true;
+      cancelCountdown = null;
+      onDone();
+    }, step.ms);
+  };
+  cancelCountdown = () => {
+    clearTimeout(timer);
+    countdownEl.hidden = true;
+    cancelCountdown = null;
+  };
+  show();
+}
+
 function startGame(): void {
   audio.warmUp();
   const s = store.get();
+  if (!VARIANTS[s.variant]) return; // unbuilt id can't be selected in the UI, but guard anyway
+  splash.hidden = true;
+  runCountdown(beginRound);
+}
+
+function beginRound(): void {
+  const s = store.get();
   const variant = VARIANTS[s.variant];
-  if (!variant) return; // unbuilt id can't be selected in the UI, but guard anyway
+  if (!variant) return;
   sessionStartIso = new Date().toISOString();
   session = new GameSession(
     variant,
@@ -320,7 +371,6 @@ function startGame(): void {
   pillScore.textContent = '0';
   pillHigh.textContent = `★ ${highScore}`;
   pillLastSecond = -1;
-  splash.hidden = true;
   pill.hidden = false;
   input.start();
   loop.start();

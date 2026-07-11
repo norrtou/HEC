@@ -223,6 +223,47 @@ button { font-family: inherit; }
   font: inherit;
 }
 
+/* ---------- Pre-round countdown ---------- */
+.countdown {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+}
+.countdown-task {
+  margin: 0 auto 1.4rem;
+  max-width: 26ch;
+  font-size: calc(1.25rem * var(--font-scale));
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+  text-wrap: balance;
+}
+.countdown-num {
+  min-height: 1.1em;
+  font-size: calc(6.5rem * var(--ui-scale));
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--accent) 40%, transparent));
+}
+.countdown-num.tick {
+  animation: count-pop 600ms ease-out;
+}
+@keyframes count-pop {
+  from { transform: scale(1.45); opacity: 0; }
+  35% { opacity: 1; }
+  to { transform: scale(1); opacity: 1; }
+}
+:root[data-reduce-motion="true"] .countdown-num.tick { animation: none; }
+
 /* ---------- Splash ---------- */
 .splash {
   position: fixed;

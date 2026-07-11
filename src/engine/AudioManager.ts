@@ -118,6 +118,22 @@ export class AudioManager {
     osc.stop(now + 0.18);
   }
 
+  /** Soft blip for the pre-round countdown; the final "go" tick is a fifth higher and brighter. */
+  playCountTick(final = false): void {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(final ? 880 : 587, now);
+    gain.gain.setValueAtTime(final ? 0.45 : 0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (final ? 0.3 : 0.12));
+    osc.connect(gain).connect(this.master!);
+    osc.start(now);
+    osc.stop(now + (final ? 0.32 : 0.14));
+  }
+
   /** Harsh short buzz for tapping a no-go target — clearly different from the dull miss thud. */
   playCommission(): void {
     if (!this.ready) return;
