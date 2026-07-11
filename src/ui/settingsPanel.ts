@@ -85,7 +85,7 @@ function fmtDuration(sec: number): string {
 export function buildSettingsPanel(container: HTMLElement, store: SettingsStore, onTestSound?: () => void): void {
   container.replaceChildren();
 
-  // ---- Språk / Language ----
+  // ---- Language ----
   container.append(el('h3', undefined, t('set.lang')));
   const langRow = el('div', 'setting-row');
   const langWrap = el('div');
@@ -108,7 +108,7 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   langRow.append(langWrap);
   container.append(langRow);
 
-  // ---- Tempo & svårighet ----
+  // ---- Pace & difficulty ----
   container.append(el('h3', undefined, t('set.tempo')));
 
   container.append(
@@ -178,7 +178,7 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
     }),
   );
 
-  // ---- Motorik ----
+  // ---- Motor skills ----
   container.append(el('h3', undefined, t('set.motor')));
   container.append(
     sliderRow(store, {
@@ -211,7 +211,7 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
     }),
   );
 
-  // ---- Tillgänglighet ----
+  // ---- Accessibility ----
   container.append(el('h3', undefined, t('set.a11y')));
   container.append(
     toggleRow(store, {
@@ -248,7 +248,7 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
     }),
   );
 
-  // ---- Ljud & haptik ----
+  // ---- Sound & haptics ----
   container.append(el('h3', undefined, t('set.audio')));
   container.append(
     toggleRow(store, {
@@ -282,7 +282,7 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
     container.append(testRow);
   }
 
-  // ---- Kalibrering ----
+  // ---- Calibration ----
   container.append(el('h3', undefined, t('set.calib')));
   const box = el('div', 'calib-box');
   const desc = el('p', undefined, t('set.calib.desc'));
