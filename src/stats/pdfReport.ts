@@ -14,10 +14,8 @@ export function exportPdf(stats: SessionStats): void {
   const W = 297;
   const M = 14;
 
-  // ---- Header ----
-  doc.setFillColor(INK);
-  doc.rect(0, 0, W, 24, 'F');
-  doc.setTextColor('#ffffff');
+  // ---- Header (printer-friendly: no solid band, just ink on paper + an accent rule) ----
+  doc.setTextColor(INK);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.text(t('pdf.title'), M, 11);
@@ -26,12 +24,16 @@ export function exportPdf(stats: SessionStats): void {
   const started = new Date(stats.meta.startedAt);
   const dateStr = started.toLocaleString(stats.meta.language || 'sv-SE');
   const variantLabel = t(`variant.${stats.meta.variant}.label` as Parameters<typeof t>[0]);
+  doc.setTextColor(MUTED);
   doc.text(
     `${dateStr}  ·  ${t('pdf.variant')}: ${variantLabel}  ·  ${t('pdf.duration')}: ${(stats.meta.durationMs / 1000).toFixed(0)} s  ·  ${t('pdf.pointer')}: ${stats.meta.pointerTypesUsed.join(', ') || '–'}`,
     M, 17,
   );
-  doc.setTextColor('#9ad8d1');
+  doc.setTextColor(ACCENT);
   doc.text(t('pdf.privacy'), M, 21.5);
+  doc.setDrawColor(ACCENT);
+  doc.setLineWidth(0.8);
+  doc.line(M, 24, W - M, 24);
 
   // ---- Key figure tiles ----
   const tiles: [string, string][] = [

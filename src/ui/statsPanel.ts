@@ -50,6 +50,99 @@ const TILE_ORDER: Record<GameVariantId, TileId[]> = {
 /** Variants where targets are spread over the screen and can be missed — only there do zone accuracy and directional bias mean anything. */
 const ZONE_VARIANTS: GameVariantId[] = ['rising', 'random', 'grid', 'gonogo', 'stopsignal'];
 
+/** Reaction time per hit as an inline SVG line chart with a dashed median reference. Colors ride the theme's CSS variables, so dark/invert modes come for free. */
+function rtChart(stats: SessionStats): string {
+  const rts = stats.trials.filter((tr) => tr.reactionTimeMs !== null).map((tr) => tr.reactionTimeMs!);
+  if (rts.length === 0) return '';
+  const W = 460;
+  const H = 170;
+  const L = 40;
+  const R = 12;
+  const T = 12;
+  const B = 10;
+  const plotW = W - L - R;
+  const plotH = H - T - B;
+  const maxRt = Math.max(...rts) * 1.15;
+  const px = (i: number) => L + plotW * (rts.length === 1 ? 0.5 : i / (rts.length - 1));
+  const py = (v: number) => T + plotH * (1 - v / maxRt);
+
+  const grid = [0, 0.5, 1]
+    .map((frac) => {
+      const v = Math.round(maxRt * frac);
+      const y = py(v);
+      return (
+        `<line x1="${L}" y1="${y.toFixed(1)}" x2="${W - R}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>` +
+        `<text x="${L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" class="axis">${v}</text>`
+      );
+    })
+    .join('');
+
+  const line =
+    rts.length > 1
+      ? `<polyline points="${rts.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`
+      : '';
+
+  const dots = rts
+    .map(
+      (v, i) =>
+        `<g class="rt-dot"><circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="9" fill="transparent"/>` +
+        `<circle class="mark" cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.5" fill="var(--accent)"/>` +
+        `<title>#${i + 1} · ${Math.round(v)} ms</title></g>`,
+    )
+    .join('');
+
+  let median = '';
+  if (stats.medianReactionMs !== null) {
+    const y = py(stats.medianReactionMs).toFixed(1);
+    median =
+      `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="var(--ink-muted)" stroke-width="1.5" stroke-dasharray="4 4"/>` +
+      `<text x="${W - R}" y="${Number(y) - 5}" text-anchor="end" class="axis">${t('pdf.median')} ${stats.medianReactionMs} ms</text>`;
+  }
+
+  return (
+    `<div class="chart-block chart-rt"><h4 class="chart-title">${t('pdf.rtPerHit')}</h4>` +
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('pdf.rtPerHit')}">${grid}${median}${line}${dots}</svg></div>`
+  );
+}
+
+/** 3×3 hit-rate heat grid — the on-screen twin of the PDF's touch-zone map. Every cell carries its number, so the sequential fill is never the only encoding. */
+function zoneHeat(stats: SessionStats): string {
+  const cells = ALL_ZONES.map((z) => {
+    const zs = stats.zoneStats[z];
+    const rate = zs.count > 0 ? zs.hits / zs.count : null;
+    const bg = rate === null ? 'transparent' : `color-mix(in srgb, var(--accent) ${Math.round(rate * 80)}%, var(--bg-raised))`;
+    const hot = rate !== null && rate > 0.55 ? ' hot' : '';
+    const zoneName = t(`zone.${z}` as Parameters<typeof t>[0]);
+    const extra =
+      zs.meanRtMs !== null ? ` · ${Math.round(zs.meanRtMs)} ms` : '';
+    return (
+      `<div class="zone-cell${hot}" style="background:${bg}" title="${zoneName}: ${zs.hits}/${zs.count}${extra}">` +
+      `${rate === null ? '–' : `${Math.round(rate * 100)}%`}<small>n=${zs.count}</small></div>`
+    );
+  }).join('');
+  return `<div class="chart-block chart-zones"><h4 class="chart-title">${t('pdf.zoneAccuracy')}</h4><div class="zone-grid">${cells}</div></div>`;
+}
+
+/** Miss share per screen half — four thin horizontal bars, red like everywhere misses are red. */
+function biasBars(stats: SessionStats): string {
+  const bias = stats.directionalBias;
+  const rows: [string, number][] = [
+    [t('pdf.left'), bias.leftMissRatePct],
+    [t('pdf.right'), bias.rightMissRatePct],
+    [t('pdf.top'), bias.topMissRatePct],
+    [t('pdf.bottom'), bias.bottomMissRatePct],
+  ];
+  const bars = rows
+    .map(
+      ([label, val]) =>
+        `<div class="bias-row"><span>${label}</span>` +
+        `<div class="bias-track"><div class="bias-fill" style="width:${val > 0 ? Math.max(2, val) : 0}%"></div></div>` +
+        `<span class="bias-val">${val}%</span></div>`,
+    )
+    .join('');
+  return `<div class="chart-block chart-bias"><h4 class="chart-title">${t('pdf.missByDirection')}</h4>${bars}</div>`;
+}
+
 export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats: SessionStats): void {
   const v = stats.meta.variant;
   const g = stats.gonogo;
@@ -130,7 +223,10 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
     return `<tr><td>${t(`zone.${z}` as Parameters<typeof t>[0])}</td><td>${zs.count}</td><td>${rate}</td><td>${zs.meanRtMs !== null ? Math.round(zs.meanRtMs) + ' ms' : '–'}</td><td>${zs.meanErrorPx !== null ? Math.round(zs.meanErrorPx) + ' px' : '–'}</td></tr>`;
   }).join('');
 
+  const charts = rtChart(stats) + (zoned ? zoneHeat(stats) + biasBars(stats) : '');
+
   fullEl.innerHTML = `
+    ${charts ? `<div class="stats-charts">${charts}</div>` : ''}
     <table>
       <tbody>${rows.map(([k, val]) => `<tr><th>${k}</th><td>${val}</td></tr>`).join('')}</tbody>
     </table>
@@ -142,5 +238,6 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
     </table>`
         : ''
     }
+    <p class="stats-env">${t('pdf.screen')}: ${stats.meta.screenW}×${stats.meta.screenH} @ ${stats.meta.devicePixelRatio}x · ${t('pdf.timezone')}: ${stats.meta.timeZone} · ${t('pdf.language')}: ${stats.meta.language}<br>${t('pdf.browser')}: ${stats.meta.userAgent}</p>
   `;
 }
