@@ -149,6 +149,12 @@ button { font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .stat-tile .v small { font-size: 0.6em; font-weight: 400; color: var(--ink-muted); }
+/* The variant's headline measure: first tile, visually anchored */
+.stat-tile.primary {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.stat-tile.primary .v { color: var(--accent); }
 
 .stats-details { margin-top: calc(1rem * var(--ui-scale)); }
 .stats-details summary {

@@ -155,13 +155,9 @@ export function exportPdf(stats: SessionStats): void {
   // ---- Aggregate table ----
   const tblY = chartTop + chartH + 12;
   drawSectionTitle(doc, t('pdf.summary'), M, tblY - 2);
-  const romStr = stats.rangeOfMotionMm ? `${stats.rangeOfMotionMm.w} × ${stats.rangeOfMotionMm.h} mm` : '–';
+  // The variant's own headline measures lead the table; generic rows follow
+  // and are dropped entirely when they carry nothing for this variant.
   const rows: [string, string][] = [
-    [t('pdf.row.counts'), `${stats.count} / ${stats.hitCount} / ${stats.missCount}`],
-    [t('pdf.row.rt'), `${fmt(stats.medianReactionMs)} / ${fmt(stats.meanReactionMs)} / ${fmt(stats.sdReactionMs)} / ${fmt(stats.bestReactionMs)} ms`],
-    [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
-    [t('pdf.row.rom'), romStr],
-    [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
     ...(stats.pursuit
       ? ([[
           t('pdf.row.pursuit'),
@@ -223,6 +219,24 @@ export function exportPdf(stats: SessionStats): void {
             stats.gonogo.meanCommissionRtMs !== null ? ` · ${stats.gonogo.meanCommissionRtMs} ms` : ''
           }`,
         ]] as [string, string][])
+      : []),
+    ...(stats.count > 0
+      ? ([[t('pdf.row.counts'), `${stats.count} / ${stats.hitCount} / ${stats.missCount}`]] as [string, string][])
+      : []),
+    ...(stats.medianReactionMs !== null
+      ? ([[
+          t('pdf.row.rt'),
+          `${fmt(stats.medianReactionMs)} / ${fmt(stats.meanReactionMs)} / ${fmt(stats.sdReactionMs)} / ${fmt(stats.bestReactionMs)} ms`,
+        ]] as [string, string][])
+      : []),
+    ...(stats.meanErrorMm !== null
+      ? ([[t('pdf.row.precision'), `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)`]] as [string, string][])
+      : []),
+    ...(stats.rangeOfMotionMm
+      ? ([[t('pdf.row.rom'), `${stats.rangeOfMotionMm.w} × ${stats.rangeOfMotionMm.h} mm`]] as [string, string][])
+      : []),
+    ...(stats.meta.variant !== 'pursuit'
+      ? ([[t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })]] as [string, string][])
       : []),
     [t('pdf.row.scale'), `${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? t('pdf.scale.calibrated') : t('pdf.scale.nominal')}`],
   ];

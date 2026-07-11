@@ -1,4 +1,4 @@
-import type { SessionStats } from '../types';
+import type { GameVariantId, SessionStats } from '../types';
 import { ALL_ZONES } from '../stats/StatsEngine';
 import { t } from '../i18n';
 
@@ -10,95 +10,112 @@ function f(v: number | null, unit = ''): string {
   return v !== null ? `${v}${unit}` : '–';
 }
 
-export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats: SessionStats): void {
-  const g = stats.gonogo;
-  gridEl.innerHTML = [
-    tile(t('stats.hits'), `${stats.hitCount}/${stats.count}`, `${stats.hitRatePct}%`),
-    tile(t('stats.medianRt'), f(stats.medianReactionMs), 'ms'),
-    tile(t('stats.meanRt'), f(stats.meanReactionMs), 'ms'),
-    tile(t('stats.bestRt'), f(stats.bestReactionMs), 'ms'),
-    tile(t('stats.precision'), f(stats.meanErrorMm), 'mm'),
-    tile(t('stats.falseClicks'), `${stats.falseAlarmCount}`, `${stats.falseAlarmRatePct}%`),
-    ...(g
-      ? [
-          tile(t('stats.commissions'), `${g.commissionCount}/${g.noGoCount}`, `${g.commissionRatePct}%`),
-          tile(t('stats.commissionRt'), f(g.meanCommissionRtMs), 'ms'),
-        ]
-      : []),
-    ...(stats.fitts
-      ? [
-          tile(t('stats.throughput'), f(stats.fitts.throughputBps), 'bits/s'),
-          tile(t('stats.mt'), f(stats.fitts.meanMtMs), 'ms'),
-        ]
-      : []),
-    ...(stats.tapping
-      ? [
-          tile(t('stats.tapsPerSec'), f(stats.tapping.tapsPerSec), '/s'),
-          tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
-        ]
-      : []),
-    ...(stats.pursuit
-      ? [
-          tile(
-            t('stats.pursuitTot'),
-            stats.pursuit.timeOnTargetPct !== null ? `${stats.pursuit.timeOnTargetPct}` : '–',
-            '%',
-          ),
-          tile(t('stats.pursuitDist'), f(stats.pursuit.meanDistMm), 'mm'),
-          tile(t('stats.pursuitRms'), f(stats.pursuit.rmsDistMm), 'mm'),
-        ]
-      : []),
-    ...(stats.corsi
-      ? [
-          tile(t('stats.corsiSpan'), `${stats.corsi.span}`),
-          tile(
-            t('stats.corsiSeqs'),
-            `${stats.corsi.sequencesCompleted}/${stats.corsi.sequencesCompleted + stats.corsi.sequencesFailed}`,
-          ),
-        ]
-      : []),
-    ...(stats.stopsignal
-      ? [
-          tile(t('stats.ssrt'), f(stats.stopsignal.ssrtMs), 'ms'),
-          tile(
-            t('stats.stopSuccess'),
-            `${Math.round((stats.stopsignal.stopSuccessRatePct / 100) * stats.stopsignal.stopCount)}/${stats.stopsignal.stopCount}`,
-            `${stats.stopsignal.stopSuccessRatePct}%`,
-          ),
-          tile(t('stats.meanSsd'), f(stats.stopsignal.meanSsdMs), 'ms'),
-        ]
-      : []),
-    ...(stats.trails
-      ? [
-          tile(t('stats.linkA'), f(stats.trails.meanLinkAMs), 'ms'),
-          tile(t('stats.linkB'), f(stats.trails.meanLinkBMs), 'ms'),
-          tile(
-            t('stats.flexCost'),
-            stats.trails.flexibilityCostMs !== null
-              ? `${stats.trails.flexibilityCostMs > 0 ? '+' : ''}${stats.trails.flexibilityCostMs}`
-              : '–',
-            'ms',
-          ),
-          tile(t('stats.seqErrors'), `${stats.trails.sequenceErrors}`),
-        ]
-      : []),
-    ...(stats.anticipation
-      ? [
-          tile(t('stats.timingAe'), f(stats.anticipation.meanAbsErrMs), 'ms'),
-          tile(
-            t('stats.timingCe'),
-            stats.anticipation.constantErrMs !== null
-              ? `${stats.anticipation.constantErrMs > 0 ? '+' : ''}${stats.anticipation.constantErrMs}`
-              : '–',
-            'ms',
-          ),
-          tile(t('stats.timingVe'), f(stats.anticipation.variableErrMs), 'ms'),
-        ]
-      : []),
-  ].join('');
+function signed(v: number | null): string {
+  return v !== null ? `${v > 0 ? '+' : ''}${v}` : '–';
+}
 
+type TileId =
+  | 'hits' | 'medianRt' | 'meanRt' | 'bestRt' | 'precision' | 'false'
+  | 'commissions' | 'commissionRt'
+  | 'throughput' | 'mt'
+  | 'tapsPerSec' | 'itiSd'
+  | 'ae' | 'ce' | 've'
+  | 'linkA' | 'linkB' | 'flex' | 'seqErr'
+  | 'ssrt' | 'stopSuccess' | 'ssd'
+  | 'corsiSpan' | 'corsiSeqs'
+  | 'tot' | 'dist' | 'rms';
+
+/**
+ * Per-variant tile layout: the paradigm's headline measure comes first (and is
+ * highlighted), supporting measures follow, and metrics that mean nothing for
+ * the variant are omitted entirely — e.g. reaction time on the finger tapping
+ * test, or hit counts on pursuit where there is nothing to tap.
+ */
+const TILE_ORDER: Record<GameVariantId, TileId[]> = {
+  rising: ['medianRt', 'hits', 'precision', 'bestRt', 'meanRt', 'false'],
+  random: ['medianRt', 'hits', 'precision', 'bestRt', 'meanRt', 'false'],
+  grid: ['medianRt', 'hits', 'precision', 'bestRt', 'meanRt', 'false'],
+  gonogo: ['commissions', 'commissionRt', 'medianRt', 'hits', 'precision', 'false'],
+  fitts: ['throughput', 'mt', 'hits', 'precision', 'false'],
+  tapping: ['tapsPerSec', 'itiSd', 'precision', 'false'],
+  anticipation: ['ae', 'ce', 've', 'hits', 'false'],
+  trails: ['linkA', 'linkB', 'flex', 'seqErr', 'false'],
+  stopsignal: ['ssrt', 'stopSuccess', 'ssd', 'medianRt', 'hits', 'false'],
+  corsi: ['corsiSpan', 'corsiSeqs'],
+  pursuit: ['tot', 'dist', 'rms'],
+};
+
+/** Variants where targets are spread over the screen and can be missed — only there do zone accuracy and directional bias mean anything. */
+const ZONE_VARIANTS: GameVariantId[] = ['rising', 'random', 'grid', 'gonogo', 'stopsignal'];
+
+export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats: SessionStats): void {
+  const v = stats.meta.variant;
+  const g = stats.gonogo;
+  const fi = stats.fitts;
+  const tp = stats.tapping;
+  const an = stats.anticipation;
+  const tr = stats.trails;
+  const ss = stats.stopsignal;
+  const co = stats.corsi;
+  const pu = stats.pursuit;
+  // In the inhibition variants only the green targets are tappable, so name them.
+  const hitsLabel = v === 'gonogo' || v === 'stopsignal' ? t('stats.hitsGo') : t('stats.hits');
+
+  const defs: Record<TileId, () => string | null> = {
+    hits: () => tile(hitsLabel, `${stats.hitCount}/${stats.count}`, `${stats.hitRatePct}%`),
+    medianRt: () => (stats.medianReactionMs !== null ? tile(t('stats.medianRt'), f(stats.medianReactionMs), 'ms') : null),
+    meanRt: () => (stats.meanReactionMs !== null ? tile(t('stats.meanRt'), f(stats.meanReactionMs), 'ms') : null),
+    bestRt: () => (stats.bestReactionMs !== null ? tile(t('stats.bestRt'), f(stats.bestReactionMs), 'ms') : null),
+    precision: () => (stats.meanErrorMm !== null ? tile(t('stats.precision'), f(stats.meanErrorMm), 'mm') : null),
+    false: () => tile(t('stats.falseClicks'), `${stats.falseAlarmCount}`, `${stats.falseAlarmRatePct}%`),
+    commissions: () => (g ? tile(t('stats.commissions'), `${g.commissionCount}/${g.noGoCount}`, `${g.commissionRatePct}%`) : null),
+    commissionRt: () => (g ? tile(t('stats.commissionRt'), f(g.meanCommissionRtMs), 'ms') : null),
+    throughput: () => (fi ? tile(t('stats.throughput'), f(fi.throughputBps), 'bits/s') : null),
+    mt: () => (fi ? tile(t('stats.mt'), f(fi.meanMtMs), 'ms') : null),
+    tapsPerSec: () => (tp ? tile(t('stats.tapsPerSec'), f(tp.tapsPerSec), '/s') : null),
+    itiSd: () => (tp ? tile(t('stats.itiSd'), f(tp.sdItiMs), 'ms') : null),
+    ae: () => (an ? tile(t('stats.timingAe'), f(an.meanAbsErrMs), 'ms') : null),
+    ce: () => (an ? tile(t('stats.timingCe'), signed(an.constantErrMs), 'ms') : null),
+    ve: () => (an ? tile(t('stats.timingVe'), f(an.variableErrMs), 'ms') : null),
+    linkA: () => (tr ? tile(t('stats.linkA'), f(tr.meanLinkAMs), 'ms') : null),
+    linkB: () => (tr ? tile(t('stats.linkB'), f(tr.meanLinkBMs), 'ms') : null),
+    flex: () => (tr ? tile(t('stats.flexCost'), signed(tr.flexibilityCostMs), 'ms') : null),
+    seqErr: () => (tr ? tile(t('stats.seqErrors'), `${tr.sequenceErrors}`) : null),
+    ssrt: () => (ss ? tile(t('stats.ssrt'), f(ss.ssrtMs), 'ms') : null),
+    stopSuccess: () =>
+      ss
+        ? tile(
+            t('stats.stopSuccess'),
+            `${Math.round((ss.stopSuccessRatePct / 100) * ss.stopCount)}/${ss.stopCount}`,
+            `${ss.stopSuccessRatePct}%`,
+          )
+        : null,
+    ssd: () => (ss ? tile(t('stats.meanSsd'), f(ss.meanSsdMs), 'ms') : null),
+    corsiSpan: () => (co ? tile(t('stats.corsiSpan'), `${co.span}`) : null),
+    corsiSeqs: () => (co ? tile(t('stats.corsiSeqs'), `${co.sequencesCompleted}/${co.sequencesCompleted + co.sequencesFailed}`) : null),
+    tot: () => (pu ? tile(t('stats.pursuitTot'), pu.timeOnTargetPct !== null ? `${pu.timeOnTargetPct}` : '–', '%') : null),
+    dist: () => (pu ? tile(t('stats.pursuitDist'), f(pu.meanDistMm), 'mm') : null),
+    rms: () => (pu ? tile(t('stats.pursuitRms'), f(pu.rmsDistMm), 'mm') : null),
+  };
+
+  const tiles = TILE_ORDER[v].map((id) => defs[id]()).filter((x): x is string => x !== null);
+  if (tiles.length > 0) tiles[0] = tiles[0].replace('stat-tile', 'stat-tile primary');
+  gridEl.innerHTML = tiles.join('');
+
+  // ---- Details: only rows that carry information for this variant ----
   const bias = stats.directionalBias;
   const rom = stats.rangeOfMotionMm;
+  const zoned = ZONE_VARIANTS.includes(v);
+  const rows: [string, string][] = [];
+  if (stats.sdReactionMs !== null) rows.push([t('stats.sdRt'), `${stats.sdReactionMs} ms`]);
+  if (stats.meanErrorPx !== null) rows.push([t('stats.precisionPx'), `${stats.meanErrorPx} px`]);
+  if (rom) rows.push([t('stats.rom'), `${rom.w} × ${rom.h} mm`]);
+  if (zoned) {
+    rows.push([t('stats.missLR'), `${bias.leftMissRatePct}% / ${bias.rightMissRatePct}%`]);
+    rows.push([t('stats.missTB'), `${bias.topMissRatePct}% / ${bias.bottomMissRatePct}%`]);
+  }
+  rows.push([t('stats.scale'), `${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? t('stats.calibrated') : t('stats.nominal')}`]);
+
   const zoneRows = ALL_ZONES.map((z) => {
     const zs = stats.zoneStats[z];
     const rate = zs.count > 0 ? `${Math.round((zs.hits / zs.count) * 100)}%` : '–';
@@ -107,18 +124,15 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
 
   fullEl.innerHTML = `
     <table>
-      <tbody>
-        <tr><th>${t('stats.sdRt')}</th><td>${f(stats.sdReactionMs, ' ms')}</td></tr>
-        <tr><th>${t('stats.precisionPx')}</th><td>${f(stats.meanErrorPx, ' px')}</td></tr>
-        <tr><th>${t('stats.rom')}</th><td>${rom ? `${rom.w} × ${rom.h} mm` : '–'}</td></tr>
-        <tr><th>${t('stats.missLR')}</th><td>${bias.leftMissRatePct}% / ${bias.rightMissRatePct}%</td></tr>
-        <tr><th>${t('stats.missTB')}</th><td>${bias.topMissRatePct}% / ${bias.bottomMissRatePct}%</td></tr>
-        <tr><th>${t('stats.scale')}</th><td>${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? t('stats.calibrated') : t('stats.nominal')}</td></tr>
-      </tbody>
+      <tbody>${rows.map(([k, val]) => `<tr><th>${k}</th><td>${val}</td></tr>`).join('')}</tbody>
     </table>
-    <table style="margin-top:0.8rem">
+    ${
+      zoned
+        ? `<table style="margin-top:0.8rem">
       <thead><tr><th>${t('stats.zone')}</th><th>${t('stats.targets')}</th><th>${t('stats.hitPct')}</th><th>${t('stats.avgRt')}</th><th>${t('stats.avgErr')}</th></tr></thead>
       <tbody>${zoneRows}</tbody>
-    </table>
+    </table>`
+        : ''
+    }
   `;
 }
