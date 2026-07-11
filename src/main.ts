@@ -126,7 +126,9 @@ const loop = new GameLoop((dtMs, now) => {
         color: b.color,
         scale: b.scale,
         glow: s.accessibility.reduceMotion ? 0 : b.state === 'popping' ? 1 : 0.55,
-        ringProgress: b.state === 'alive' && b.vy === 0 ? Math.max(0, remaining) : undefined,
+        // No countdown ring on permanent targets (finger tapping test).
+        ringProgress:
+          b.state === 'alive' && b.vy === 0 && b.lifetimeMs < 600_000 ? Math.max(0, remaining) : undefined,
         highContrast: s.accessibility.highContrastTargets,
         distractor: b.distractor,
       });

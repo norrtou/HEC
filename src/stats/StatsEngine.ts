@@ -118,6 +118,21 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
 
+  // Finger tapping: tempo and rhythm from consecutive tap timestamps.
+  let tapping: SessionStats['tapping'];
+  if (input.variant === 'tapping') {
+    const times = hits.map((t) => t.resolvedTime).sort((a, b) => a - b);
+    const itis: number[] = [];
+    for (let i = 1; i < times.length; i++) itis.push(times[i] - times[i - 1]);
+    const durationS = input.durationMs / 1000;
+    tapping = {
+      tapCount: hits.length,
+      tapsPerSec: durationS > 0 ? Math.round((hits.length / durationS) * 100) / 100 : null,
+      meanItiMs: mean(itis) !== null ? Math.round(mean(itis)!) : null,
+      sdItiMs: stddev(itis) !== null ? Math.round(stddev(itis)!) : null,
+    };
+  }
+
   const noGoCount = commissions.length + rejections.length;
   const commissionRts = commissions.map((t) => t.reactionTimeMs!).filter((v) => v != null);
   const meanCommissionRt = mean(commissionRts);
@@ -182,6 +197,7 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    tapping,
     fitts,
     gonogo:
       input.variant === 'gonogo'

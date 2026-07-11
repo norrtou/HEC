@@ -146,6 +146,14 @@ export interface SessionStats {
     topMissRatePct: number;
     bottomMissRatePct: number;
   };
+  /** Present only for the finger tapping variant. */
+  tapping?: {
+    tapCount: number;
+    tapsPerSec: number | null;
+    meanItiMs: number | null;
+    /** SD of the inter-tap interval — rhythm consistency */
+    sdItiMs: number | null;
+  };
   /** Present only for the Fitts tapping variant. */
   fitts?: {
     /** trials with a valid movement (previous tap → hit), i.e. consecutive hits */

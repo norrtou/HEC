@@ -162,6 +162,14 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.tapping
+      ? ([[
+          t('pdf.row.tapping'),
+          stats.tapping.tapsPerSec !== null
+            ? `${stats.tapping.tapsPerSec} /s · ${stats.tapping.tapCount} taps · ITI ${stats.tapping.meanItiMs} ± ${stats.tapping.sdItiMs ?? '–'} ms`
+            : '–',
+        ]] as [string, string][])
+      : []),
     ...(stats.fitts
       ? ([[
           t('pdf.row.fitts'),

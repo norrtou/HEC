@@ -167,7 +167,9 @@ export class GameSession {
     for (const s of samples) {
       this.pointerTypesUsed.add(s.pointerType);
 
-      if (this.motor.tremorFilterEnabled && this.isFilteredAsTremor(s)) continue;
+      // Tremor filter would swallow the rapid same-spot taps that retain-on-hit
+      // variants (finger tapping test) exist to measure.
+      if (!this.variant.retainOnHit && this.motor.tremorFilterEnabled && this.isFilteredAsTremor(s)) continue;
 
       this.variant.onTap?.(s.x, s.y);
       const candidate = this.findHitCandidate(s.x, s.y);
@@ -217,17 +219,24 @@ export class GameSession {
   }
 
   private resolveHit(b: Bubble, s: RawPointerSample): void {
-    b.state = 'popping';
-    b.stateStart = s.t;
-    const reactionTimeMs = s.t - b.spawnTime;
+    const retained = !!this.variant.retainOnHit;
+    if (!retained) {
+      b.state = 'popping';
+      b.stateStart = s.t;
+    }
+    // For a permanent target (finger tapping) "time since spawn" is not a
+    // reaction time — the tempo lives in the inter-tap intervals instead,
+    // which StatsEngine reconstructs from resolvedTime.
+    const reactionTimeMs = retained ? null : s.t - b.spawnTime;
     const errorPx = Math.sqrt((s.x - b.x) ** 2 + (s.y - b.y) ** 2);
 
-    this.particles.burst(b.x, b.y, b.color);
+    this.particles.burst(retained ? s.x : b.x, retained ? s.y : b.y, b.color);
     this.audio.playPop((Math.random() - 0.5) * 80);
     this.haptics.pop();
 
-    const speedBonus = Math.max(0, Math.round(50 * (1 - reactionTimeMs / b.lifetimeMs)));
-    const delta = 100 + speedBonus;
+    const speedBonus =
+      reactionTimeMs !== null ? Math.max(0, Math.round(50 * (1 - reactionTimeMs / b.lifetimeMs))) : 0;
+    const delta = retained ? 25 : 100 + speedBonus;
     this.score += delta;
     this.callbacks.onScoreChange?.(this.score, delta);
     if (this.score > this.highScore) {

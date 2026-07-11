@@ -69,7 +69,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Finger tapping: a dot radiating ripples — raw repetition speed.
     id: 'tapping',
-    implemented: false,
+    implemented: true,
     icon:
       '<circle cx="12" cy="14.5" r="2.2" fill="currentColor" stroke="none"/>' +
       '<path d="M8.6 9.9a4.8 4.8 0 0 1 6.8 0M6 7.2a8.6 8.6 0 0 1 12 0"/>',

@@ -32,6 +32,12 @@ export interface GameVariant {
     /** scales the user's target lifetime (e.g. Fitts wants a generous window) */
     lifetimeMultiplier?: number;
   };
+  /**
+   * Target survives being hit (finger tapping test): every tap is recorded as
+   * a trial but the bubble never pops. Also bypasses the tremor filter, since
+   * rapid same-spot taps are the whole point of that paradigm.
+   */
+  retainOnHit?: boolean;
   /** Called for every accepted tap — for variants that place targets relative to the pointer. */
   onTap?(x: number, y: number): void;
   /** Called when a new round starts, so module-level variant state never leaks between rounds. */
@@ -203,6 +209,26 @@ export const FittsVariant: GameVariant = (() => {
   };
 })();
 
+/**
+ * Finger tapping test (Halstead-Reitan style): a single large target in the
+ * middle of the play area that never expires and never pops — tap it as many
+ * times as possible. Raw motor speed (taps/s) and rhythm consistency (SD of
+ * the inter-tap interval) are computed in StatsEngine from the trial log.
+ */
+export const TappingVariant: GameVariant = {
+  id: 'tapping',
+  retainOnHit: true,
+  // One immortal target: effectively infinite lifetime, no respawn churn.
+  overrides: { maxConcurrent: 1, spawnIntervalMs: 0, lifetimeMultiplier: 1e6 },
+  nextSpawn(area, baseRadius, _seq) {
+    const y = area.topSafeMarginPx + (area.h - area.topSafeMarginPx - area.marginPx) / 2;
+    return { x: area.w / 2, y, vy: 0, radius: Math.max(48, baseRadius * 1.8) };
+  },
+  isOutOfBounds() {
+    return false;
+  },
+};
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
@@ -210,4 +236,5 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   grid: GridVariant,
   gonogo: GoNoGoVariant,
   fitts: FittsVariant,
+  tapping: TappingVariant,
 };

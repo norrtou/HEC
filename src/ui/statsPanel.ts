@@ -31,6 +31,12 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.mt'), f(stats.fitts.meanMtMs), 'ms'),
         ]
       : []),
+    ...(stats.tapping
+      ? [
+          tile(t('stats.tapsPerSec'), f(stats.tapping.tapsPerSec), '/s'),
+          tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
+        ]
+      : []),
   ].join('');
 
   const bias = stats.directionalBias;
