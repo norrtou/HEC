@@ -10,6 +10,13 @@ export interface SpawnPoint {
   color?: string;
   /** per-target radius override (Fitts variant varies target width per trial) */
   radius?: number;
+  /** text drawn on the bubble (Trail Making numbers/letters) */
+  label?: string;
+  /** position in an ordered sequence; taps out of order are rejected via acceptHit */
+  order?: number;
+  /** sequence wave metadata for per-wave stats (Trail Making) */
+  wave?: number;
+  waveKind?: 'A' | 'B';
 }
 
 export interface PlayArea {
@@ -44,6 +51,14 @@ export interface GameVariant {
    * switches hit scoring and stats to timing error instead of reaction time.
    */
   gateY?(area: PlayArea): number;
+  /** Veto spawning even when concurrency allows it (Trail Making waits for the wave to clear). */
+  canSpawn?(): boolean;
+  /**
+   * Ordered-sequence variants: return true if this target may be popped now
+   * (and advance the internal sequence), false to reject the tap as a
+   * sequence error — the bubble stays and the session records the error.
+   */
+  acceptHit?(order: number | undefined): boolean;
   /** Called for every accepted tap — for variants that place targets relative to the pointer. */
   onTap?(x: number, y: number): void;
   /** Called when a new round starts, so module-level variant state never leaks between rounds. */
@@ -260,6 +275,88 @@ export const AnticipationVariant: GameVariant = {
   },
 };
 
+export const TRAILS_WAVE_SIZE = 6;
+
+/**
+ * Trail Making: waves of six labelled bubbles shown at once, tapped in order.
+ * Waves alternate between TMT-A style (1-2-3-4-5-6, visual scanning) and
+ * TMT-B style (1-A-2-B-3-C, set switching); the link-time difference B − A
+ * isolates cognitive flexibility from raw motor/scanning speed. Out-of-order
+ * taps are rejected as sequence errors and the wave continues.
+ */
+export const TrailsVariant: GameVariant = (() => {
+  let pending: SpawnPoint[] = [];
+  let aliveInWave = 0;
+  let expected = 0;
+  let waveIndex = 0;
+
+  const labelsFor = (kind: 'A' | 'B'): string[] =>
+    kind === 'A' ? ['1', '2', '3', '4', '5', '6'] : ['1', 'A', '2', 'B', '3', 'C'];
+
+  const generateWave = (area: PlayArea, radius: number): void => {
+    const kind: 'A' | 'B' = waveIndex % 2 === 0 ? 'A' : 'B';
+    const labels = labelsFor(kind);
+    const minX = area.marginPx + radius;
+    const maxX = area.w - area.marginPx - radius;
+    const minY = area.topSafeMarginPx + radius;
+    const maxY = area.h - area.marginPx - radius;
+    // Rejection-sample positions so bubbles never crowd each other.
+    const placed: { x: number; y: number }[] = [];
+    for (let i = 0; i < TRAILS_WAVE_SIZE; i++) {
+      let x = 0;
+      let y = 0;
+      for (let tries = 0; tries < 200; tries++) {
+        x = rand(minX, maxX);
+        y = rand(minY, maxY);
+        if (placed.every((p) => Math.hypot(p.x - x, p.y - y) > radius * 2.6)) break;
+      }
+      placed.push({ x, y });
+    }
+    pending = placed.map((p, i) => ({
+      x: p.x,
+      y: p.y,
+      vy: 0,
+      label: labels[i],
+      order: i,
+      wave: waveIndex,
+      waveKind: kind,
+    }));
+    expected = 0;
+    aliveInWave = 0;
+    waveIndex++;
+  };
+
+  return {
+    id: 'trails',
+    // The whole wave lives on screen at once and never times out — order,
+    // not speed-to-expiry, is the constraint (classic TMT is untimed per item).
+    overrides: { maxConcurrent: TRAILS_WAVE_SIZE, spawnIntervalMs: 0, lifetimeMultiplier: 1e6 },
+    reset() {
+      pending = [];
+      aliveInWave = 0;
+      expected = 0;
+      waveIndex = 0;
+    },
+    canSpawn() {
+      return pending.length > 0 || aliveInWave === 0;
+    },
+    nextSpawn(area, radius, _seq) {
+      if (pending.length === 0) generateWave(area, radius);
+      aliveInWave++;
+      return pending.shift()!;
+    },
+    acceptHit(order) {
+      if (order !== expected) return false;
+      expected++;
+      aliveInWave--;
+      return true;
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
@@ -269,4 +366,5 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   fitts: FittsVariant,
   tapping: TappingVariant,
   anticipation: AnticipationVariant,
+  trails: TrailsVariant,
 };

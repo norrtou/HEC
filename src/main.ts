@@ -139,6 +139,7 @@ const loop = new GameLoop((dtMs, now) => {
           b.state === 'alive' && b.vy === 0 && b.lifetimeMs < 600_000 ? Math.max(0, remaining) : undefined,
         highContrast: s.accessibility.highContrastTargets,
         distractor: b.distractor,
+        label: b.label,
       });
     }
     particles.render(ctx);
@@ -178,6 +179,7 @@ function currentStats(): SessionStats | null {
   return buildSessionStats({
     trials: session.trials,
     falseAlarms: session.falseAlarms,
+    sequenceErrors: session.sequenceErrorCount,
     variant: store.get().variant,
     startedAtIso: sessionStartIso,
     durationMs: Math.min(session.elapsedMs(performance.now()), session.roundDurationMs),

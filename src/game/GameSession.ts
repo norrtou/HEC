@@ -15,6 +15,7 @@ const EXPIRE_FADE_MS = 160;
 // feels like an action rather than a non-event.
 const COMMISSION_PENALTY = 150;
 const REJECTION_BONUS = 50;
+const SEQUENCE_ERROR_PENALTY = 25;
 
 export interface GameSessionCallbacks {
   onScoreChange?(score: number, delta: number): void;
@@ -26,6 +27,8 @@ export class GameSession {
   bubbles: Bubble[] = [];
   trials: TrialRecord[] = [];
   falseAlarms: FalseAlarm[] = [];
+  /** out-of-order taps on sequence targets (Trail Making) */
+  sequenceErrorCount = 0;
   pointerTypesUsed = new Set<PointerKind>();
   score = 0;
   highScore = 0;
@@ -87,6 +90,7 @@ export class GameSession {
     const ov = this.variant.overrides;
     if (this.bubbles.length >= (ov?.maxConcurrent ?? this.difficulty.maxConcurrent)) return;
     if (now - this.lastSpawnTime < (ov?.spawnIntervalMs ?? this.difficulty.spawnIntervalMs)) return;
+    if (this.variant.canSpawn && !this.variant.canSpawn()) return;
     this.lastSpawnTime = now;
     const area = this.playArea(w, h);
     const point = this.variant.nextSpawn(area, this.difficulty.targetRadiusPx, this.seq++);
@@ -100,6 +104,10 @@ export class GameSession {
     const b = new Bubble(point.x, point.y, r, point.color ?? pickColor(this.colorSeq++), now, lifetimeMs);
     b.vy = point.vy * this.difficulty.speedPxPerSec;
     b.distractor = !!point.distractor;
+    b.label = point.label;
+    b.order = point.order;
+    b.wave = point.wave;
+    b.waveKind = point.waveKind;
     this.bubbles.push(b);
   }
 
@@ -176,7 +184,16 @@ export class GameSession {
       if (candidate) {
         this.acceptTap(s.x, s.y, s.t);
         if (candidate.distractor) this.resolveCommission(candidate, s);
-        else this.resolveHit(candidate, s);
+        else if (this.variant.acceptHit && !this.variant.acceptHit(candidate.order)) {
+          // Right bubble family, wrong position in the sequence: the bubble
+          // stays, the error is counted, and the player continues from where
+          // they were — matching how TMT administration handles errors.
+          this.sequenceErrorCount++;
+          this.score = Math.max(0, this.score - SEQUENCE_ERROR_PENALTY);
+          this.callbacks.onScoreChange?.(this.score, -SEQUENCE_ERROR_PENALTY);
+          this.audio.playCommission();
+          this.haptics.miss();
+        } else this.resolveHit(candidate, s);
       } else {
         this.acceptTap(s.x, s.y, s.t);
         this.falseAlarms.push({ t: s.t, x: s.x, y: s.y, pointerType: s.pointerType });
@@ -273,6 +290,10 @@ export class GameSession {
       pointerType: s.pointerType,
       zone: b.zoneOf(this.areaW, this.areaH),
       timingErrorMs,
+      trailStep:
+        b.order !== undefined && b.wave !== undefined && b.waveKind !== undefined
+          ? { wave: b.wave, step: b.order, kind: b.waveKind }
+          : undefined,
     };
     this.trials.push(trial);
     this.callbacks.onTrial?.(trial);

@@ -86,7 +86,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Trail making: nodes connected in a zigzag path — scan and sequence.
     id: 'trails',
-    implemented: false,
+    implemented: true,
     icon:
       '<path d="M4.8 17.5 9.5 7l4.4 8.6L19.2 6"/>' +
       '<g fill="currentColor" stroke="none"><circle cx="4.8" cy="17.5" r="1.6"/><circle cx="9.5" cy="7" r="1.6"/>' +

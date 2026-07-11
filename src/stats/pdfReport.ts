@@ -162,6 +162,14 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.trails
+      ? ([[
+          t('pdf.row.trails'),
+          `A ${stats.trails.meanLinkAMs ?? '–'} ms · B ${stats.trails.meanLinkBMs ?? '–'} ms · B−A ${
+            stats.trails.flexibilityCostMs ?? '–'
+          } ms · ${stats.trails.wavesCompleted} waves · ${stats.trails.sequenceErrors} err`,
+        ]] as [string, string][])
+      : []),
     ...(stats.anticipation
       ? ([[
           t('pdf.row.anticipation'),

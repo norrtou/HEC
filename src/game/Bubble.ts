@@ -15,6 +15,13 @@ export class Bubble {
   vy = 0; // used by rising variant, px/s
   /** no-go target (Go/No-Go variant): tapping it counts as a commission error */
   distractor = false;
+  /** text drawn on the bubble (Trail Making) */
+  label?: string;
+  /** position in an ordered sequence (Trail Making) */
+  order?: number;
+  /** wave metadata for per-wave stats (Trail Making) */
+  wave?: number;
+  waveKind?: 'A' | 'B';
 
   state: BubbleState = 'growing';
   stateStart: number;

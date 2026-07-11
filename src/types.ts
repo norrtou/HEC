@@ -97,6 +97,8 @@ export interface TrialRecord {
   zone: ScreenZone;
   /** Anticipation variant: signed ms relative to the gate crossing (− early, + late). */
   timingErrorMs?: number | null;
+  /** Trail Making variant: which wave/step this target was, and the wave type. */
+  trailStep?: { wave: number; step: number; kind: 'A' | 'B' };
 }
 
 /** A raw, cheap-to-capture sample pushed onto the measurement queue immediately on pointerdown. */
@@ -147,6 +149,17 @@ export interface SessionStats {
     rightMissRatePct: number;
     topMissRatePct: number;
     bottomMissRatePct: number;
+  };
+  /** Present only for the Trail Making variant. */
+  trails?: {
+    wavesCompleted: number;
+    /** mean tap-to-tap time within numbers-only waves (TMT-A analogue) */
+    meanLinkAMs: number | null;
+    /** mean tap-to-tap time within alternating waves (TMT-B analogue) */
+    meanLinkBMs: number | null;
+    /** B − A: the set-switching cost, isolating cognitive flexibility */
+    flexibilityCostMs: number | null;
+    sequenceErrors: number;
   };
   /** Present only for the anticipation timing variant. Classic coincidence-anticipation measures. */
   anticipation?: {

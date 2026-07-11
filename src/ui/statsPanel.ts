@@ -37,6 +37,20 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
         ]
       : []),
+    ...(stats.trails
+      ? [
+          tile(t('stats.linkA'), f(stats.trails.meanLinkAMs), 'ms'),
+          tile(t('stats.linkB'), f(stats.trails.meanLinkBMs), 'ms'),
+          tile(
+            t('stats.flexCost'),
+            stats.trails.flexibilityCostMs !== null
+              ? `${stats.trails.flexibilityCostMs > 0 ? '+' : ''}${stats.trails.flexibilityCostMs}`
+              : '–',
+            'ms',
+          ),
+          tile(t('stats.seqErrors'), `${stats.trails.sequenceErrors}`),
+        ]
+      : []),
     ...(stats.anticipation
       ? [
           tile(t('stats.timingAe'), f(stats.anticipation.meanAbsErrMs), 'ms'),

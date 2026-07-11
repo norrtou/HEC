@@ -7,6 +7,7 @@ import type {
   SessionStats,
   TrialRecord,
 } from '../types';
+import { TRAILS_WAVE_SIZE } from '../game/Variant';
 
 export const ALL_ZONES: ScreenZone[] = [
   'top-left', 'top-center', 'top-right',
@@ -46,6 +47,8 @@ function pct(part: number, whole: number): number {
 export interface BuildStatsInput {
   trials: TrialRecord[];
   falseAlarms: FalseAlarm[];
+  /** out-of-order taps in sequence variants (Trail Making) */
+  sequenceErrors?: number;
   variant: GameVariantId;
   startedAtIso: string;
   durationMs: number;
@@ -117,6 +120,40 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMm: Math.round(pxPerMm * 100) / 100,
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
+
+  // Trail Making: link times (tap-to-tap within a wave) split by wave kind.
+  // The B − A difference is the set-switching cost.
+  let trails: SessionStats['trails'];
+  if (input.variant === 'trails') {
+    const byWave = new Map<number, TrialRecord[]>();
+    for (const t of hits) {
+      if (!t.trailStep) continue;
+      const list = byWave.get(t.trailStep.wave) ?? [];
+      list.push(t);
+      byWave.set(t.trailStep.wave, list);
+    }
+    const linksA: number[] = [];
+    const linksB: number[] = [];
+    let wavesCompleted = 0;
+    for (const list of byWave.values()) {
+      list.sort((a, b) => a.trailStep!.step - b.trailStep!.step);
+      if (list.length === TRAILS_WAVE_SIZE) wavesCompleted++;
+      for (let i = 1; i < list.length; i++) {
+        if (list[i].trailStep!.step !== list[i - 1].trailStep!.step + 1) continue;
+        const link = list[i].resolvedTime - list[i - 1].resolvedTime;
+        (list[i].trailStep!.kind === 'A' ? linksA : linksB).push(link);
+      }
+    }
+    const a = mean(linksA);
+    const b = mean(linksB);
+    trails = {
+      wavesCompleted,
+      meanLinkAMs: a !== null ? Math.round(a) : null,
+      meanLinkBMs: b !== null ? Math.round(b) : null,
+      flexibilityCostMs: a !== null && b !== null ? Math.round(b - a) : null,
+      sequenceErrors: input.sequenceErrors ?? 0,
+    };
+  }
 
   // Anticipation timing: classic coincidence-anticipation measures over the
   // signed gate-crossing errors — AE (accuracy), CE (bias), VE (consistency).
@@ -213,6 +250,7 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    trails,
     anticipation,
     tapping,
     fitts,

@@ -54,6 +54,8 @@ export interface BubbleVisual {
   highContrast: boolean;
   /** no-go target: drawn with a prohibition slash so it never relies on color alone */
   distractor?: boolean;
+  /** centered text on the bubble (Trail Making numbers/letters) */
+  label?: string;
 }
 
 export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void {
@@ -93,6 +95,15 @@ export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void
     ctx.moveTo(-d, -d);
     ctx.lineTo(d, d);
     ctx.stroke();
+  }
+
+  if (b.label) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(5,10,8,0.82)'; // dark text reads on every palette color
+    ctx.font = `700 ${Math.max(12, Math.round(r * 0.95))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.label, 0, 1);
   }
 
   if (b.ringProgress !== undefined) {
