@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>HEC — Mät din hand–öga-koordination | Norrtou Creations</title>
+    <meta name="description" content="HEC är ett gratis reaktionsspel som mäter din hand–öga-koordination: reaktionstid i millisekunder, precision i millimeter, rörelseomfång och riktningsanalys. Inga data sparas. Exportera resultat som PDF, CSV eller JSON." />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Norrtou Creations" />
+    <link rel="canonical" href="https://hec.norrtou.se/" />
+    <meta name="theme-color" content="#07070b" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%233ee6d6'/%3E%3Ccircle cx='11' cy='11' r='4' fill='%23ffffff' opacity='0.85'/%3E%3C/svg%3E" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="HEC — Mät din hand–öga-koordination" />
+    <meta property="og:description" content="Reaktionstid, precision och rörelseanalys i ett satisfying bubbelspel. Inga data sparas. Export till PDF/CSV/JSON." />
+    <meta property="og:url" content="https://hec.norrtou.se/" />
+    <meta property="og:locale" content="sv_SE" />
+    <meta name="twitter:card" content="summary" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "HEC — Hand-Eye Coordination",
+      "url": "https://hec.norrtou.se/",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires a modern browser with Canvas 2D and Pointer Events",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SEK" },
+      "author": { "@type": "Organization", "name": "Norrtou Creations", "url": "https://norrtou.se" },
+      "description": "Ett webbaserat spel som mäter hand–öga-koordination: reaktionstid, precision, rörelseomfång och riktningsanalys. Ingen data lämnar enheten.",
+      "inLanguage": "sv"
+    }
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p style="color:#fff;background:#07070b;padding:2rem;font-family:sans-serif">
+        HEC kräver JavaScript. Aktivera JavaScript i din webbläsare för att spela och mäta din hand–öga-koordination.
+      </p>
+    </noscript>
+
+    <canvas id="game-canvas" aria-label="Spelyta — träffa bubblorna när de dyker upp" role="application"></canvas>
+
+    <!-- Discreet top pill: time + high score. Expands into the stats panel. -->
+    <button id="top-pill" class="top-pill" aria-expanded="false" aria-controls="stats-panel" hidden>
+      <span id="pill-time" class="pill-time" aria-label="Speltid">0:00</span>
+      <span class="pill-sep" aria-hidden="true"></span>
+      <span id="pill-score" class="pill-score" aria-label="Poäng">0</span>
+      <span class="pill-sep" aria-hidden="true"></span>
+      <span id="pill-high" class="pill-high" aria-label="Rekord">★ 0</span>
+      <svg class="pill-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+
+    <!-- Slide-down statistics panel -->
+    <section id="stats-panel" class="stats-panel" aria-label="Statistik" hidden>
+      <div class="stats-grid" id="stats-grid"></div>
+      <details class="stats-details">
+        <summary>Alla mätvärden</summary>
+        <div id="stats-full"></div>
+      </details>
+      <div class="stats-actions">
+        <button id="btn-export-pdf" class="btn btn-accent">Exportera PDF-rapport</button>
+        <button id="btn-export-csv" class="btn">CSV</button>
+        <button id="btn-export-json" class="btn">JSON</button>
+        <span class="stats-actions-spacer"></span>
+        <button id="btn-end-session" class="btn btn-quiet">Avsluta omgång</button>
+      </div>
+    </section>
+
+    <!-- Splash screen -->
+    <div id="splash" class="splash" role="dialog" aria-modal="true" aria-labelledby="splash-title">
+      <div class="splash-inner">
+        <h1 id="splash-title" class="splash-logo">HEC</h1>
+        <p class="splash-sub">Mät din hand–öga-koordination</p>
+
+        <div class="variant-picker" role="radiogroup" aria-label="Välj spelvariant" id="variant-picker"></div>
+
+        <div class="splash-note">
+          <p><strong>Jämför rättvist:</strong> använd samma enhet, webbläsare och pekdon (mus, penna, platta eller touch) mellan omgångar — tekniken påverkar mätvärdena.</p>
+          <p><strong>Integritet:</strong> inga data sparas eller skickas — allt mäts lokalt och försvinner när du stänger sidan.</p>
+          <p>Finjustera tempo, träffytor och tillgänglighet under <button id="link-settings" class="linklike">Inställningar</button>.</p>
+        </div>
+
+        <button id="btn-start" class="btn btn-start">Starta spel</button>
+        <p class="splash-credit">Av <a href="https://norrtou.se" rel="author">Norrtou Creations</a></p>
+      </div>
+    </div>
+
+    <!-- Settings panel -->
+    <div id="settings" class="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+      <div class="settings-inner">
+        <header class="settings-header">
+          <h2 id="settings-title">Inställningar</h2>
+          <button id="btn-close-settings" class="btn btn-quiet" aria-label="Stäng inställningar">✕</button>
+        </header>
+        <div id="settings-body" class="settings-body"></div>
+        <footer class="settings-footer">
+          <button id="btn-reset-settings" class="btn btn-quiet">Återställ standard</button>
+          <button id="btn-done-settings" class="btn btn-accent">Klar</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Orientation gate for portrait handhelds -->
+    <div id="orientation-gate" class="orientation-gate" hidden>
+      <div>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <rect x="4" y="7" width="16" height="10" rx="2"/>
+          <path d="M12 2v3M10 3.5L12 5l2-1.5"/>
+        </svg>
+        <p>Vrid enheten till liggande läge för att spela.</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
