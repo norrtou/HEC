@@ -32,15 +32,28 @@ let cssW = 0;
 let cssH = 0;
 
 // ---------- Canvas sizing ----------
+// The canvas element's rendered size is the single source of truth: game logic,
+// the bitmap and pointer coordinates (measured against the same rect in
+// InputManager) must all share one coordinate space. window.innerHeight is NOT
+// that space on iOS Safari — the layout viewport that `height: 100%` resolves
+// against is taller when the toolbar is visible, which stretched the bitmap
+// (oval bubbles) and shifted every tap past the hitboxes.
 function resize(): void {
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-  cssW = window.innerWidth;
-  cssH = window.innerHeight;
+  const rect = canvas.getBoundingClientRect();
+  cssW = rect.width;
+  cssH = rect.height;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Setting canvas.width clears the bitmap; repaint now if the loop isn't running.
+  if (!session) drawBackdrop(ctx, cssW, cssH, 0, store.get().accessibility.invertColors);
 }
 window.addEventListener('resize', resize);
+// iOS fires these (not always window.resize) when the URL bar collapses/expands
+// or the phone rotates, and both change the layout viewport.
+window.visualViewport?.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
 resize();
 
 // ---------- i18n ----------
