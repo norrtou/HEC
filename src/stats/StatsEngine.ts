@@ -118,6 +118,22 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
 
+  // Anticipation timing: classic coincidence-anticipation measures over the
+  // signed gate-crossing errors — AE (accuracy), CE (bias), VE (consistency).
+  let anticipation: SessionStats['anticipation'];
+  if (input.variant === 'anticipation') {
+    const tErrs = hits.map((t) => t.timingErrorMs).filter((v): v is number => v != null);
+    const ce = mean(tErrs);
+    const ae = mean(tErrs.map(Math.abs));
+    const ve = stddev(tErrs);
+    anticipation = {
+      count: tErrs.length,
+      meanAbsErrMs: ae !== null ? Math.round(ae) : null,
+      constantErrMs: ce !== null ? Math.round(ce) : null,
+      variableErrMs: ve !== null ? Math.round(ve) : null,
+    };
+  }
+
   // Finger tapping: tempo and rhythm from consecutive tap timestamps.
   let tapping: SessionStats['tapping'];
   if (input.variant === 'tapping') {
@@ -197,6 +213,7 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    anticipation,
     tapping,
     fitts,
     gonogo:

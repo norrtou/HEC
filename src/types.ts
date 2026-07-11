@@ -95,6 +95,8 @@ export interface TrialRecord {
   errorPx: number | null; // distance from target center to hit point
   pointerType: PointerKind;
   zone: ScreenZone;
+  /** Anticipation variant: signed ms relative to the gate crossing (− early, + late). */
+  timingErrorMs?: number | null;
 }
 
 /** A raw, cheap-to-capture sample pushed onto the measurement queue immediately on pointerdown. */
@@ -145,6 +147,16 @@ export interface SessionStats {
     rightMissRatePct: number;
     topMissRatePct: number;
     bottomMissRatePct: number;
+  };
+  /** Present only for the anticipation timing variant. Classic coincidence-anticipation measures. */
+  anticipation?: {
+    count: number;
+    /** absolute error — overall timing accuracy */
+    meanAbsErrMs: number | null;
+    /** constant error — systematic bias (negative = early, positive = late) */
+    constantErrMs: number | null;
+    /** variable error (SD of signed error) — timing consistency */
+    variableErrMs: number | null;
   };
   /** Present only for the finger tapping variant. */
   tapping?: {

@@ -107,6 +107,18 @@ export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void
   ctx.restore();
 }
 
+/** Dashed gate ring for timing variants: tap the bubble exactly as it crosses this. */
+export function drawGate(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, invert: boolean): void {
+  ctx.save();
+  ctx.strokeStyle = invert ? 'rgba(20,20,40,0.55)' : 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 7]);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function shade(hex: string, amt: number): string {
   const n = parseInt(hex.slice(1), 16);
   let r = (n >> 16) & 0xff;

@@ -37,6 +37,19 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
         ]
       : []),
+    ...(stats.anticipation
+      ? [
+          tile(t('stats.timingAe'), f(stats.anticipation.meanAbsErrMs), 'ms'),
+          tile(
+            t('stats.timingCe'),
+            stats.anticipation.constantErrMs !== null
+              ? `${stats.anticipation.constantErrMs > 0 ? '+' : ''}${stats.anticipation.constantErrMs}`
+              : '–',
+            'ms',
+          ),
+          tile(t('stats.timingVe'), f(stats.anticipation.variableErrMs), 'ms'),
+        ]
+      : []),
   ].join('');
 
   const bias = stats.directionalBias;

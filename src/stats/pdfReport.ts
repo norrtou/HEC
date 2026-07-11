@@ -162,6 +162,14 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.anticipation
+      ? ([[
+          t('pdf.row.anticipation'),
+          stats.anticipation.count > 0
+            ? `AE ${stats.anticipation.meanAbsErrMs} ms · CE ${stats.anticipation.constantErrMs} ms · VE ${stats.anticipation.variableErrMs ?? '–'} ms (n=${stats.anticipation.count})`
+            : '–',
+        ]] as [string, string][])
+      : []),
     ...(stats.tapping
       ? ([[
           t('pdf.row.tapping'),

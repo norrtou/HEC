@@ -230,13 +230,26 @@ export class GameSession {
     const reactionTimeMs = retained ? null : s.t - b.spawnTime;
     const errorPx = Math.sqrt((s.x - b.x) ** 2 + (s.y - b.y) ** 2);
 
+    // Timing variants: signed error relative to the gate crossing, from the
+    // bubble's current distance to the gate and its known speed.
+    const gy = this.variant.gateY?.(this.playArea(this.areaW, this.areaH));
+    const timingErrorMs =
+      gy !== undefined && b.vy !== 0 ? Math.round(((gy - b.y) / Math.abs(b.vy)) * 1000) : null;
+
     this.particles.burst(retained ? s.x : b.x, retained ? s.y : b.y, b.color);
     this.audio.playPop((Math.random() - 0.5) * 80);
     this.haptics.pop();
 
     const speedBonus =
       reactionTimeMs !== null ? Math.max(0, Math.round(50 * (1 - reactionTimeMs / b.lifetimeMs))) : 0;
-    const delta = retained ? 25 : 100 + speedBonus;
+    // Timing hits pay for closeness to the gate (max 200 within ±50 ms,
+    // fading to a floor of 10); others use the usual hit + speed bonus.
+    const delta =
+      timingErrorMs !== null
+        ? Math.max(10, Math.round(200 * Math.max(0, 1 - (Math.max(0, Math.abs(timingErrorMs) - 50)) / 350)))
+        : retained
+          ? 25
+          : 100 + speedBonus;
     this.score += delta;
     this.callbacks.onScoreChange?.(this.score, delta);
     if (this.score > this.highScore) {
@@ -259,6 +272,7 @@ export class GameSession {
       errorPx,
       pointerType: s.pointerType,
       zone: b.zoneOf(this.areaW, this.areaH),
+      timingErrorMs,
     };
     this.trials.push(trial);
     this.callbacks.onTrial?.(trial);
@@ -332,6 +346,11 @@ export class GameSession {
     };
     this.trials.push(trial);
     this.callbacks.onTrial?.(trial);
+  }
+
+  /** Gate line for timing variants, in play coordinates; null when the variant has none. */
+  gateY(): number | null {
+    return this.variant.gateY ? this.variant.gateY(this.playArea(this.areaW, this.areaH)) : null;
   }
 
   elapsedMs(now: number): number {

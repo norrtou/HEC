@@ -4,7 +4,7 @@ import { InputManager } from './engine/InputManager';
 import { AudioManager } from './engine/AudioManager';
 import { Haptics } from './engine/Haptics';
 import { ParticleSystem } from './engine/ParticleSystem';
-import { drawBackdrop, drawBubble } from './engine/Renderer';
+import { drawBackdrop, drawBubble, drawGate } from './engine/Renderer';
 import { GameSession } from './game/GameSession';
 import { VARIANTS } from './game/Variant';
 import { VARIANT_META, variantIcon } from './game/variantMeta';
@@ -116,7 +116,15 @@ const loop = new GameLoop((dtMs, now) => {
     session.processSamples(input.drain());
     // 2) Advance game state
     session.update(dtMs, now, cssW, cssH);
-    // 3) Render
+    // 3) Render — gate rings first so bubbles pass over them
+    const gateY = session.gateY();
+    if (gateY !== null) {
+      for (const b of session.bubbles) {
+        if (b.state === 'alive' || b.state === 'growing') {
+          drawGate(ctx, b.x, gateY, b.radius + 9, s.accessibility.invertColors);
+        }
+      }
+    }
     for (const b of session.bubbles) {
       const remaining = 1 - (now - b.spawnTime) / b.lifetimeMs;
       drawBubble(ctx, {

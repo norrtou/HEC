@@ -38,6 +38,12 @@ export interface GameVariant {
    * rapid same-spot taps are the whole point of that paradigm.
    */
   retainOnHit?: boolean;
+  /**
+   * Y of the timing gate, if this variant has one (anticipation): a moving
+   * target should be tapped exactly as its center crosses this line. Presence
+   * switches hit scoring and stats to timing error instead of reaction time.
+   */
+  gateY?(area: PlayArea): number;
   /** Called for every accepted tap — for variants that place targets relative to the pointer. */
   onTap?(x: number, y: number): void;
   /** Called when a new round starts, so module-level variant state never leaks between rounds. */
@@ -229,6 +235,31 @@ export const TappingVariant: GameVariant = {
   },
 };
 
+/**
+ * Coincidence anticipation (Bassin-timer style): bubbles rise like in the
+ * rising variant, but each has a dashed gate ring on its path at a fixed
+ * height. The task is to tap the bubble exactly as it crosses the ring; the
+ * measure is the signed timing error, not spatial precision. Speed comes from
+ * the user's difficulty setting, so faster approach = harder anticipation.
+ */
+export const AnticipationVariant: GameVariant = {
+  id: 'anticipation',
+  // Two runways at most — timing several simultaneous approaches stops being
+  // an anticipation test and becomes divided attention.
+  overrides: { maxConcurrent: 2 },
+  gateY(area) {
+    return area.topSafeMarginPx + (area.h - area.topSafeMarginPx - area.marginPx) * 0.32;
+  },
+  nextSpawn(area, radius, _seq) {
+    const x = rand(area.marginPx + radius, area.w - area.marginPx - radius);
+    const y = area.h + radius + rand(0, 40);
+    return { x, y, vy: -1 };
+  },
+  isOutOfBounds(_x, y, radius, area) {
+    return y + radius < area.topSafeMarginPx;
+  },
+};
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
@@ -237,4 +268,5 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   gonogo: GoNoGoVariant,
   fitts: FittsVariant,
   tapping: TappingVariant,
+  anticipation: AnticipationVariant,
 };

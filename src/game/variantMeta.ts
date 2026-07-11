@@ -77,7 +77,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Anticipation: ball on a dotted approach to a dashed ring — timing.
     id: 'anticipation',
-    implemented: false,
+    implemented: true,
     icon:
       '<circle cx="16.5" cy="12" r="4.4" stroke-dasharray="2.3 2.5"/>' +
       '<circle cx="5" cy="12" r="1.9" fill="currentColor" stroke="none"/>' +
