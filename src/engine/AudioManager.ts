@@ -27,6 +27,13 @@ export class AudioManager {
 
   /** Call from a user gesture (e.g. the splash screen's Start button). */
   warmUp(): void {
+    // iOS mutes Web Audio (unlike media elements) while the ring/silent
+    // switch is on. Opting the page into the "playback" audio session
+    // category (iOS 17+) makes the game audible regardless of the switch,
+    // like a video app.
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'playback';
+
     if (this.ctx) {
       this.ensureRunning();
       return;
@@ -46,9 +53,9 @@ export class AudioManager {
     this.ensureRunning();
   }
 
-  /** Browsers may (re)suspend the context outside our control — resume whenever we're about to play. */
+  /** Browsers may (re)suspend the context outside our control — resume whenever we're about to play. WebKit can also leave it in a non-standard 'interrupted' state (phone call, backgrounding), so check for anything other than 'running'. */
   ensureRunning(): void {
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume();
   }
 
   private get ready(): boolean {
