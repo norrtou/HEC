@@ -1,5 +1,6 @@
 import type { Settings } from '../types';
 import { DIFFICULTY_PRESETS, clampDifficulty } from '../game/DifficultyModel';
+import { VARIANTS } from '../game/Variant';
 
 /**
  * Settings live in localStorage only — device-local preferences, never sent
@@ -62,7 +63,9 @@ export class SettingsStore {
         audio: { ...base.audio, ...saved.audio },
         calibration: { ...base.calibration, ...saved.calibration },
         difficulty: clampDifficulty({ ...base.difficulty, ...saved.difficulty }),
-        variant: saved.variant ?? base.variant,
+        // Guard against ids that exist in the menu but are not built yet
+        // (or were removed): fall back to the default variant.
+        variant: saved.variant && VARIANTS[saved.variant] ? saved.variant : base.variant,
         roundDurationSec: Math.min(600, Math.max(15, saved.roundDurationSec ?? base.roundDurationSec)),
         language: saved.language ?? base.language,
       };

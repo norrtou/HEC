@@ -1,6 +1,10 @@
 // Shared types for HEC (Hand-Eye Coordination)
 
-export type GameVariantId = 'rising' | 'random' | 'grid';
+export type GameVariantId =
+  | 'rising' | 'random' | 'grid'
+  // Planned variants — listed (shadowed) in the menu before they are built:
+  | 'gonogo' | 'fitts' | 'tapping' | 'anticipation'
+  | 'trails' | 'stopsignal' | 'corsi' | 'pursuit';
 
 export type PointerKind = 'mouse' | 'touch' | 'pen' | 'unknown';
 

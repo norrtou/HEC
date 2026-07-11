@@ -7,6 +7,7 @@ import { ParticleSystem } from './engine/ParticleSystem';
 import { drawBackdrop, drawBubble } from './engine/Renderer';
 import { GameSession } from './game/GameSession';
 import { VARIANTS } from './game/Variant';
+import { VARIANT_META, variantIcon } from './game/variantMeta';
 import { buildSessionStats } from './stats/StatsEngine';
 import { exportCsv, exportJson } from './stats/exporters';
 import { SettingsStore } from './ui/settingsStore';
@@ -64,6 +65,9 @@ function applyStaticTranslations(): void {
   $('i18n-note-compare').innerHTML = t('splash.note.compare');
   $('i18n-note-privacy').innerHTML = t('splash.note.privacy');
   $('i18n-note-settings').innerHTML = t('splash.note.settings');
+  $('i18n-note-info').innerHTML = t('splash.note.info');
+  $('info-title').textContent = t('info.title');
+  $('btn-close-info').setAttribute('aria-label', t('info.close'));
   $('btn-start').textContent = t('splash.start');
   $('i18n-credit').innerHTML = t('splash.credit');
   $('i18n-all-metrics').textContent = t('stats.allMetrics');
@@ -189,6 +193,7 @@ pill.addEventListener('click', () => toggleStatsPanel());
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (!settingsEl.hidden) closeSettings();
+    else if (!infoEl.hidden) closeInfo();
     else if (statsPanel.classList.contains('open')) toggleStatsPanel(false);
   }
 });
@@ -215,31 +220,70 @@ const variantPicker = $('variant-picker');
 
 function buildVariantPicker(): void {
   variantPicker.replaceChildren();
-  for (const v of Object.values(VARIANTS)) {
+  for (const meta of VARIANT_META) {
     const card = document.createElement('button');
     card.className = 'variant-card';
     card.type = 'button';
     card.setAttribute('role', 'radio');
-    card.setAttribute('aria-checked', String(store.get().variant === v.id));
-    const label = t(`variant.${v.id}.label` as Parameters<typeof t>[0]);
-    const tagline = t(`variant.${v.id}.tagline` as Parameters<typeof t>[0]);
-    card.innerHTML = `<h3>${label}</h3><p>${tagline}</p>`;
-    card.addEventListener('click', () => {
-      store.update((s) => { s.variant = v.id as GameVariantId; });
-      for (const c of variantPicker.children) c.setAttribute('aria-checked', 'false');
-      card.setAttribute('aria-checked', 'true');
-    });
+    const label = t(`variant.${meta.id}.label` as Parameters<typeof t>[0]);
+    const tagline = t(`variant.${meta.id}.tagline` as Parameters<typeof t>[0]);
+    card.innerHTML = `<span class="variant-icon">${variantIcon(meta)}</span><h3>${label}</h3><p>${tagline}</p>`;
+    if (meta.implemented) {
+      card.setAttribute('aria-checked', String(store.get().variant === meta.id));
+      card.addEventListener('click', () => {
+        store.update((s) => { s.variant = meta.id as GameVariantId; });
+        for (const c of variantPicker.children) c.setAttribute('aria-checked', 'false');
+        card.setAttribute('aria-checked', 'true');
+      });
+    } else {
+      // Shadowed until the variant is built: visible in the menu, not selectable.
+      card.disabled = true;
+      card.setAttribute('aria-checked', 'false');
+      card.insertAdjacentHTML('beforeend', `<span class="variant-soon">${t('variant.soon')}</span>`);
+    }
     variantPicker.append(card);
   }
 }
 buildVariantPicker();
 
+// ---------- Info page (what each game measures) ----------
+const infoEl = $('info');
+
+function buildInfoBody(): void {
+  const body = $('info-body');
+  body.replaceChildren();
+  body.insertAdjacentHTML('beforeend', `<p class="info-intro">${t('info.intro')}</p>`);
+  for (const meta of VARIANT_META) {
+    const label = t(`variant.${meta.id}.label` as Parameters<typeof t>[0]);
+    const text = t(`variant.${meta.id}.info` as Parameters<typeof t>[0]);
+    const soon = meta.implemented ? '' : ` <span class="variant-soon">${t('variant.soon')}</span>`;
+    body.insertAdjacentHTML(
+      'beforeend',
+      `<section class="info-item${meta.implemented ? '' : ' info-item--soon'}">` +
+        `<span class="variant-icon">${variantIcon(meta)}</span>` +
+        `<h3>${label}${soon}</h3><p>${text}</p></section>`,
+    );
+  }
+}
+
+function openInfo(): void {
+  buildInfoBody(); // rebuilt on every open so it always matches the current language
+  infoEl.hidden = false;
+  $('btn-close-info').focus();
+}
+function closeInfo(): void {
+  infoEl.hidden = true;
+}
+$('btn-close-info').addEventListener('click', closeInfo);
+
 function startGame(): void {
   audio.warmUp();
   const s = store.get();
+  const variant = VARIANTS[s.variant];
+  if (!variant) return; // unbuilt id can't be selected in the UI, but guard anyway
   sessionStartIso = new Date().toISOString();
   session = new GameSession(
-    VARIANTS[s.variant],
+    variant,
     s.difficulty,
     s.motor,
     particles,
@@ -303,9 +347,11 @@ function openSettings(): void {
 function closeSettings(): void {
   settingsEl.hidden = true;
 }
-// Delegated: the settings link inside the splash note is re-created on language switch.
+// Delegated: the settings/info links inside the splash note are re-created on language switch.
 document.addEventListener('click', (e) => {
-  if ((e.target as HTMLElement).id === 'link-settings') openSettings();
+  const id = (e.target as HTMLElement).id;
+  if (id === 'link-settings') openSettings();
+  else if (id === 'link-info') openInfo();
 });
 $('btn-close-settings').addEventListener('click', closeSettings);
 $('btn-done-settings').addEventListener('click', closeSettings);

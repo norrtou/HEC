@@ -85,6 +85,7 @@
           <p id="i18n-note-compare"><strong>Compare fairly:</strong> use the same device, browser and pointer (mouse, pen, tablet or touch) between rounds — the hardware affects the measurements.</p>
           <p id="i18n-note-privacy"><strong>Privacy:</strong> no data is stored or sent — everything is measured locally and disappears when you close the page.</p>
           <p id="i18n-note-settings">Fine-tune pace, hit areas and accessibility under <button id="link-settings" class="linklike">Settings</button>.</p>
+          <p id="i18n-note-info">Read what each game measures under <button id="link-info" class="linklike">About the games</button>.</p>
         </div>
 
         <button id="btn-start" class="btn btn-start">Start game</button>
@@ -104,6 +105,17 @@
           <button id="btn-reset-settings" class="btn btn-quiet">Reset to defaults</button>
           <button id="btn-done-settings" class="btn btn-accent">Done</button>
         </footer>
+      </div>
+    </div>
+
+    <!-- Info page: what each game variant measures and its scientific basis -->
+    <div id="info" class="settings" role="dialog" aria-modal="true" aria-labelledby="info-title" hidden>
+      <div class="settings-inner">
+        <header class="settings-header">
+          <h2 id="info-title">About the games</h2>
+          <button id="btn-close-info" class="btn btn-quiet" aria-label="Close">✕</button>
+        </header>
+        <div id="info-body" class="settings-body"></div>
       </div>
     </div>
 

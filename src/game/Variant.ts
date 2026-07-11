@@ -82,7 +82,8 @@ export const GridVariant: GameVariant = (() => {
   };
 })();
 
-export const VARIANTS: Record<GameVariantId, GameVariant> = {
+/** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
+export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
   random: RandomPopVariant,
   grid: GridVariant,
