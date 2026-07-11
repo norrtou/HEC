@@ -8,6 +8,7 @@ import type {
   TrialRecord,
 } from '../types';
 import { TRAILS_WAVE_SIZE } from '../game/Variant';
+import type { CorsiReport } from '../game/Variant';
 
 export const ALL_ZONES: ScreenZone[] = [
   'top-left', 'top-center', 'top-right',
@@ -49,6 +50,8 @@ export interface BuildStatsInput {
   falseAlarms: FalseAlarm[];
   /** out-of-order taps in sequence variants (Trail Making) */
   sequenceErrors?: number;
+  /** variant-owned Corsi results (span cannot be derived from the trial log) */
+  corsi?: CorsiReport;
   variant: GameVariantId;
   startedAtIso: string;
   durationMs: number;
@@ -120,6 +123,25 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMm: Math.round(pxPerMm * 100) / 100,
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
+
+  // Stop-signal: race-model SSRT = mean go-RT − mean SSD. The staircase keeps
+  // stop success near 50%, where this estimate is valid.
+  let stopsignal: SessionStats['stopsignal'];
+  if (input.variant === 'stopsignal') {
+    const stops = commissions.length + rejections.length;
+    const ssds = [...commissions, ...rejections]
+      .map((t) => t.stopSignalDelayMs)
+      .filter((v): v is number => v != null);
+    const meanSsd = mean(ssds);
+    const meanGoRt = mean(rts);
+    stopsignal = {
+      stopCount: stops,
+      stopSuccessRatePct: pct(rejections.length, stops),
+      meanSsdMs: meanSsd !== null ? Math.round(meanSsd) : null,
+      meanGoRtMs: meanGoRt !== null ? Math.round(meanGoRt) : null,
+      ssrtMs: meanSsd !== null && meanGoRt !== null && stops >= 4 ? Math.round(meanGoRt - meanSsd) : null,
+    };
+  }
 
   // Trail Making: link times (tap-to-tap within a wave) split by wave kind.
   // The B − A difference is the set-switching cost.
@@ -250,6 +272,15 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    corsi:
+      input.variant === 'corsi' && input.corsi
+        ? {
+            span: input.corsi.span,
+            sequencesCompleted: input.corsi.sequencesCompleted,
+            sequencesFailed: input.corsi.sequencesFailed,
+          }
+        : undefined,
+    stopsignal,
     trails,
     anticipation,
     tapping,

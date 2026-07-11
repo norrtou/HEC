@@ -1,4 +1,12 @@
-import type { GameVariantId } from '../types';
+import type { GameVariantId, TrialRecord } from '../types';
+import type { Bubble } from './Bubble';
+
+export interface CorsiReport {
+  /** longest correctly reproduced sequence length */
+  span: number;
+  sequencesCompleted: number;
+  sequencesFailed: number;
+}
 
 export interface SpawnPoint {
   x: number;
@@ -17,6 +25,8 @@ export interface SpawnPoint {
   /** sequence wave metadata for per-wave stats (Trail Making) */
   wave?: number;
   waveKind?: 'A' | 'B';
+  /** stop-signal variant: turn into a no-go target this many ms after spawn */
+  stopAfterMs?: number;
 }
 
 export interface PlayArea {
@@ -61,6 +71,14 @@ export interface GameVariant {
   acceptHit?(order: number | undefined): boolean;
   /** Called for every accepted tap — for variants that place targets relative to the pointer. */
   onTap?(x: number, y: number): void;
+  /** Called after every recorded trial — for variants that adapt (stop-signal staircase). */
+  onResolve?(trial: TrialRecord): void;
+  /** Called once per frame with the live bubbles — for variants that animate/phase (Corsi presentation). */
+  onUpdate?(now: number, bubbles: Bubble[]): void;
+  /** While true, pointer input is discarded entirely (Corsi presentation phase). */
+  ignoreTaps?(): boolean;
+  /** Variant-owned results that cannot be derived from the trial log (Corsi span). */
+  report?(): CorsiReport;
   /** Called when a new round starts, so module-level variant state never leaks between rounds. */
   reset?(): void;
 }
@@ -275,6 +293,55 @@ export const AnticipationVariant: GameVariant = {
   },
 };
 
+/**
+ * Stop-signal task: every target spawns green (go), but 3 of 10 turn red a
+ * stop-signal delay (SSD) after onset and must then NOT be tapped. The SSD
+ * follows the standard 50 ms staircase — up after a successful stop, down
+ * after a failed one — converging on ~50% stop success, which is what makes
+ * the race-model estimate SSRT ≈ mean go-RT − mean SSD valid. Taps landing
+ * before the signal fires count as ordinary hits (the player could not know).
+ */
+export const StopSignalVariant: GameVariant = (() => {
+  const SSD_START = 250;
+  const SSD_STEP = 50;
+  const SSD_MIN = 80;
+  const SSD_MAX = 1200;
+
+  let ssd = SSD_START;
+  let bag: boolean[] = [];
+  const refill = () => {
+    bag = [true, true, true, false, false, false, false, false, false, false];
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  return {
+    id: 'stopsignal',
+    reset() {
+      ssd = SSD_START;
+      bag = [];
+    },
+    nextSpawn(area, radius, _seq) {
+      if (bag.length === 0) refill();
+      const stopTrial = bag.pop()!;
+      const x = rand(area.marginPx + radius, area.w - area.marginPx - radius);
+      const y = rand(area.topSafeMarginPx + radius, area.h - area.marginPx - radius);
+      return { x, y, vy: 0, color: GO_COLOR, stopAfterMs: stopTrial ? ssd : undefined };
+    },
+    onResolve(trial) {
+      // Only stop trials resolve as commission (failed stop) or rejection
+      // (successful stop) in this variant.
+      if (trial.result === 'rejection') ssd = Math.min(SSD_MAX, ssd + SSD_STEP);
+      else if (trial.result === 'commission') ssd = Math.max(SSD_MIN, ssd - SSD_STEP);
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 export const TRAILS_WAVE_SIZE = 6;
 
 /**
@@ -357,6 +424,137 @@ export const TrailsVariant: GameVariant = (() => {
   };
 })();
 
+/**
+ * Corsi block-tapping: nine permanent bubbles in a jittered 3×3 layout. A
+ * sequence flashes one bubble at a time; the player then reproduces it in the
+ * same order. Success lengthens the next sequence, an error shortens it
+ * (floor 2) — the span (longest reproduced length) is the visuospatial
+ * short-term memory measure. Taps are ignored while the sequence plays.
+ */
+export const CorsiVariant: GameVariant = (() => {
+  const NEUTRAL = '#566080';
+  const FLASH = '#3ee6d6';
+  const ITEM_MS = 950; // per presented item: 700 ms lit + 250 ms dark
+  const LIT_MS = 700;
+  const GAP_MS = 900; // pause between sequences
+
+  type Phase = 'init' | 'present' | 'reproduce' | 'gap';
+  let phase: Phase = 'init';
+  let seq: number[] = [];
+  let len = 2;
+  let step = 0;
+  let phaseStart = 0;
+  let emitted = 0;
+  let positions: { x: number; y: number }[] = [];
+  let span = 0;
+  let completed = 0;
+  let failed = 0;
+  let nowRef = 0;
+
+  const newSequence = (): void => {
+    const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    seq = pool.slice(0, len);
+    step = 0;
+    phaseStart = 0;
+    phase = 'present';
+  };
+
+  return {
+    id: 'corsi',
+    retainOnHit: true,
+    overrides: { maxConcurrent: 9, spawnIntervalMs: 0, lifetimeMultiplier: 1e6 },
+    reset() {
+      phase = 'init';
+      seq = [];
+      len = 2;
+      step = 0;
+      emitted = 0;
+      positions = [];
+      span = 0;
+      completed = 0;
+      failed = 0;
+    },
+    canSpawn() {
+      return emitted < 9;
+    },
+    nextSpawn(area, radius, _seq) {
+      if (positions.length === 0) {
+        // Jittered 3×3 anchors — same idea as the grid variant, but fixed for
+        // the whole round like Corsi's physical block board.
+        const usableW = area.w - area.marginPx * 2;
+        const usableH = area.h - area.topSafeMarginPx - area.marginPx;
+        for (let i = 0; i < 9; i++) {
+          const col = i % 3;
+          const row = Math.floor(i / 3);
+          positions.push({
+            x: area.marginPx + usableW * ((col + 0.5) / 3) + rand(-radius, radius) * 0.6,
+            y: area.topSafeMarginPx + usableH * ((row + 0.5) / 3) + rand(-radius, radius) * 0.6,
+          });
+        }
+      }
+      const p = positions[emitted];
+      return { x: p.x, y: p.y, vy: 0, color: NEUTRAL, order: emitted++ };
+    },
+    onUpdate(now, bubbles) {
+      nowRef = now;
+      const blocks = bubbles.filter((b) => b.order !== undefined);
+      if (phase === 'init') {
+        if (blocks.length === 9) newSequence();
+        return;
+      }
+      if (phase === 'gap') {
+        if (now - phaseStart >= GAP_MS) newSequence();
+        return;
+      }
+      if (phase === 'present') {
+        if (phaseStart === 0) phaseStart = now;
+        const idx = Math.floor((now - phaseStart) / ITEM_MS);
+        const lit = idx < seq.length && (now - phaseStart) % ITEM_MS < LIT_MS;
+        for (const b of blocks) {
+          const active = lit && b.order === seq[idx];
+          b.color = active ? FLASH : NEUTRAL;
+          if (active) b.highlightUntil = now + 60;
+        }
+        if (idx >= seq.length) {
+          phase = 'reproduce';
+          step = 0;
+        }
+      }
+    },
+    ignoreTaps() {
+      return phase !== 'reproduce';
+    },
+    acceptHit(order) {
+      if (order !== seq[step]) {
+        failed++;
+        len = Math.max(2, len - 1);
+        phase = 'gap';
+        phaseStart = nowRef;
+        return false;
+      }
+      step++;
+      if (step === seq.length) {
+        completed++;
+        span = Math.max(span, seq.length);
+        len = Math.min(9, len + 1);
+        phase = 'gap';
+        phaseStart = nowRef;
+      }
+      return true;
+    },
+    report() {
+      return { span, sequencesCompleted: completed, sequencesFailed: failed };
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
@@ -367,4 +565,6 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   tapping: TappingVariant,
   anticipation: AnticipationVariant,
   trails: TrailsVariant,
+  stopsignal: StopSignalVariant,
+  corsi: CorsiVariant,
 };

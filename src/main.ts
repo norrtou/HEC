@@ -133,7 +133,7 @@ const loop = new GameLoop((dtMs, now) => {
         radius: b.radius,
         color: b.color,
         scale: b.scale,
-        glow: s.accessibility.reduceMotion ? 0 : b.state === 'popping' ? 1 : 0.55,
+        glow: b.highlightUntil > now ? 1 : s.accessibility.reduceMotion ? 0 : b.state === 'popping' ? 1 : 0.55,
         // No countdown ring on permanent targets (finger tapping test).
         ringProgress:
           b.state === 'alive' && b.vy === 0 && b.lifetimeMs < 600_000 ? Math.max(0, remaining) : undefined,
@@ -180,6 +180,7 @@ function currentStats(): SessionStats | null {
     trials: session.trials,
     falseAlarms: session.falseAlarms,
     sequenceErrors: session.sequenceErrorCount,
+    corsi: session.variantReport(),
     variant: store.get().variant,
     startedAtIso: sessionStartIso,
     durationMs: Math.min(session.elapsedMs(performance.now()), session.roundDurationMs),

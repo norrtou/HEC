@@ -1,6 +1,7 @@
 import type { DifficultyParams, FalseAlarm, MotorSettings, PointerKind, RawPointerSample, TrialRecord } from '../types';
 import { Bubble } from './Bubble';
 import type { GameVariant, PlayArea } from './Variant';
+import { NOGO_COLOR } from './Variant';
 import { pickColor } from '../engine/Renderer';
 import { ParticleSystem } from '../engine/ParticleSystem';
 import { AudioManager } from '../engine/AudioManager';
@@ -108,6 +109,11 @@ export class GameSession {
     b.order = point.order;
     b.wave = point.wave;
     b.waveKind = point.waveKind;
+    if (point.stopAfterMs !== undefined) {
+      // Cap the delay so the signal always fires with time left to react to it.
+      b.ssdMs = Math.round(Math.min(point.stopAfterMs, lifetimeMs * 0.75));
+      b.stopAtMs = now + b.ssdMs;
+    }
     this.bubbles.push(b);
   }
 
@@ -131,6 +137,11 @@ export class GameSession {
     const area = this.playArea(w, h);
 
     for (const b of this.bubbles) {
+      // Stop signal fires: the go target becomes a no-go target mid-life.
+      if (b.stopAtMs !== undefined && !b.distractor && now >= b.stopAtMs && (b.state === 'alive' || b.state === 'growing')) {
+        b.distractor = true;
+        b.color = NOGO_COLOR;
+      }
       const age = now - b.stateStart;
       switch (b.state) {
         case 'growing':
@@ -162,6 +173,7 @@ export class GameSession {
     }
 
     this.bubbles = this.bubbles.filter((b) => b.state !== 'dead');
+    this.variant.onUpdate?.(now, this.bubbles);
     this.particles.update(dtMs);
 
     if (this.timeUp && !this.finished && this.bubbles.length === 0 && this.particles.count === 0) {
@@ -174,6 +186,9 @@ export class GameSession {
     if (this.timeUp) return;
     for (const s of samples) {
       this.pointerTypesUsed.add(s.pointerType);
+
+      // e.g. Corsi presentation phase: input is not part of the task yet.
+      if (this.variant.ignoreTaps?.()) continue;
 
       // Tremor filter would swallow the rapid same-spot taps that retain-on-hit
       // variants (finger tapping test) exist to measure.
@@ -296,6 +311,7 @@ export class GameSession {
           : undefined,
     };
     this.trials.push(trial);
+    this.variant.onResolve?.(trial);
     this.callbacks.onTrial?.(trial);
   }
 
@@ -325,8 +341,10 @@ export class GameSession {
       errorPx: Math.sqrt((s.x - b.x) ** 2 + (s.y - b.y) ** 2),
       pointerType: s.pointerType,
       zone: b.zoneOf(this.areaW, this.areaH),
+      stopSignalDelayMs: b.ssdMs,
     };
     this.trials.push(trial);
+    this.variant.onResolve?.(trial);
     this.callbacks.onTrial?.(trial);
   }
 
@@ -364,9 +382,16 @@ export class GameSession {
       errorPx: null,
       pointerType: 'unknown',
       zone: b.zoneOf(this.areaW, this.areaH),
+      stopSignalDelayMs: b.ssdMs,
     };
     this.trials.push(trial);
+    this.variant.onResolve?.(trial);
     this.callbacks.onTrial?.(trial);
+  }
+
+  /** Variant-owned results that live outside the trial log (Corsi span). */
+  variantReport(): ReturnType<NonNullable<GameVariant['report']>> | undefined {
+    return this.variant.report?.();
   }
 
   /** Gate line for timing variants, in play coordinates; null when the variant has none. */

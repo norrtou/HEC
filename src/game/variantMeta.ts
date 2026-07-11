@@ -95,7 +95,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Stop-signal: octagon with pause bars — cancel the action in flight.
     id: 'stopsignal',
-    implemented: false,
+    implemented: true,
     icon:
       '<path d="M9 3.8h6l4.2 4.2v6L15 20.2H9L4.8 16v-6z"/>' +
       '<path d="M10.3 9.7v4.6M13.7 9.7v4.6"/>',
@@ -103,7 +103,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Corsi: blocks, one lit — reproduce the spatial sequence.
     id: 'corsi',
-    implemented: false,
+    implemented: true,
     icon:
       '<rect x="4" y="14" width="5.6" height="5.6" rx="1.2"/>' +
       '<rect x="14.4" y="14" width="5.6" height="5.6" rx="1.2"/>' +

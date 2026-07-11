@@ -9,7 +9,8 @@ export class Bubble {
   x: number;
   y: number;
   readonly radius: number;
-  readonly color: string;
+  /** mutable: the stop-signal variant recolors the bubble when the signal fires */
+  color: string;
   readonly spawnTime: number;
   readonly lifetimeMs: number;
   vy = 0; // used by rising variant, px/s
@@ -22,6 +23,11 @@ export class Bubble {
   /** wave metadata for per-wave stats (Trail Making) */
   wave?: number;
   waveKind?: 'A' | 'B';
+  /** stop-signal variant: absolute time when this target turns no-go, and the delay used */
+  stopAtMs?: number;
+  ssdMs?: number;
+  /** glow boost until this timestamp (Corsi presentation flash) */
+  highlightUntil = 0;
 
   state: BubbleState = 'growing';
   stateStart: number;

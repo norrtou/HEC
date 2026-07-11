@@ -37,6 +37,26 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
         ]
       : []),
+    ...(stats.corsi
+      ? [
+          tile(t('stats.corsiSpan'), `${stats.corsi.span}`),
+          tile(
+            t('stats.corsiSeqs'),
+            `${stats.corsi.sequencesCompleted}/${stats.corsi.sequencesCompleted + stats.corsi.sequencesFailed}`,
+          ),
+        ]
+      : []),
+    ...(stats.stopsignal
+      ? [
+          tile(t('stats.ssrt'), f(stats.stopsignal.ssrtMs), 'ms'),
+          tile(
+            t('stats.stopSuccess'),
+            `${Math.round((stats.stopsignal.stopSuccessRatePct / 100) * stats.stopsignal.stopCount)}/${stats.stopsignal.stopCount}`,
+            `${stats.stopsignal.stopSuccessRatePct}%`,
+          ),
+          tile(t('stats.meanSsd'), f(stats.stopsignal.meanSsdMs), 'ms'),
+        ]
+      : []),
     ...(stats.trails
       ? [
           tile(t('stats.linkA'), f(stats.trails.meanLinkAMs), 'ms'),

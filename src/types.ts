@@ -99,6 +99,8 @@ export interface TrialRecord {
   timingErrorMs?: number | null;
   /** Trail Making variant: which wave/step this target was, and the wave type. */
   trailStep?: { wave: number; step: number; kind: 'A' | 'B' };
+  /** Stop-signal variant: delay before the stop signal fired (stop trials only). */
+  stopSignalDelayMs?: number;
 }
 
 /** A raw, cheap-to-capture sample pushed onto the measurement queue immediately on pointerdown. */
@@ -149,6 +151,23 @@ export interface SessionStats {
     rightMissRatePct: number;
     topMissRatePct: number;
     bottomMissRatePct: number;
+  };
+  /** Present only for the Corsi sequence variant. */
+  corsi?: {
+    /** longest correctly reproduced sequence — the classic Corsi span */
+    span: number;
+    sequencesCompleted: number;
+    sequencesFailed: number;
+  };
+  /** Present only for the stop-signal variant. */
+  stopsignal?: {
+    stopCount: number;
+    /** successful stops / stop trials; staircase aims for ~50% */
+    stopSuccessRatePct: number;
+    meanSsdMs: number | null;
+    meanGoRtMs: number | null;
+    /** race-model estimate: mean go-RT − mean SSD */
+    ssrtMs: number | null;
   };
   /** Present only for the Trail Making variant. */
   trails?: {

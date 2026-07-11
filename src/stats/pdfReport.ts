@@ -162,6 +162,20 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.corsi
+      ? ([[
+          t('pdf.row.corsi'),
+          `${stats.corsi.span} · ${stats.corsi.sequencesCompleted} ok / ${stats.corsi.sequencesFailed} fail`,
+        ]] as [string, string][])
+      : []),
+    ...(stats.stopsignal
+      ? ([[
+          t('pdf.row.stopsignal'),
+          `SSRT ${stats.stopsignal.ssrtMs ?? '–'} ms · ${stats.stopsignal.stopSuccessRatePct}% stops · SSD ${
+            stats.stopsignal.meanSsdMs ?? '–'
+          } ms · go-RT ${stats.stopsignal.meanGoRtMs ?? '–'} ms (n=${stats.stopsignal.stopCount})`,
+        ]] as [string, string][])
+      : []),
     ...(stats.trails
       ? ([[
           t('pdf.row.trails'),
