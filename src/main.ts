@@ -12,6 +12,7 @@ import { exportCsv, exportJson } from './stats/exporters';
 import { SettingsStore } from './ui/settingsStore';
 import { buildSettingsPanel } from './ui/settingsPanel';
 import { renderStatsPanel } from './ui/statsPanel';
+import { getLang, resolveLang, setLang, t } from './i18n';
 import type { GameVariantId, SessionStats } from './types';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -42,6 +43,26 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
+// ---------- i18n ----------
+function applyStaticTranslations(): void {
+  document.documentElement.lang = getLang();
+  document.title = t('doc.title');
+  $('i18n-splash-sub').textContent = t('splash.sub');
+  $('i18n-note-compare').innerHTML = t('splash.note.compare');
+  $('i18n-note-privacy').innerHTML = t('splash.note.privacy');
+  $('i18n-note-settings').innerHTML = t('splash.note.settings');
+  $('btn-start').textContent = t('splash.start');
+  $('i18n-credit').innerHTML = t('splash.credit');
+  $('i18n-all-metrics').textContent = t('stats.allMetrics');
+  $('btn-export-pdf').textContent = t('stats.exportPdf');
+  $('btn-end-session').textContent = t('stats.endSession');
+  $('settings-title').textContent = t('set.title');
+  $('btn-close-settings').setAttribute('aria-label', t('set.close'));
+  $('btn-reset-settings').textContent = t('set.reset');
+  $('btn-done-settings').textContent = t('set.done');
+  $('i18n-gate').textContent = t('gate.rotate');
+}
+
 // ---------- Settings application ----------
 function applySettings(): void {
   const s = store.get();
@@ -56,9 +77,17 @@ function applySettings(): void {
   particles.setReduceMotion(s.accessibility.reduceMotion);
   session?.setDifficulty(s.difficulty);
   session?.setMotor(s.motor);
+  if (session) session.roundDurationMs = s.roundDurationSec * 1000;
+
+  const lang = resolveLang(s.language);
+  if (lang !== getLang()) {
+    setLang(lang);
+    applyStaticTranslations();
+    buildVariantPicker();
+    if (settingsBuilt) buildSettingsPanel($('settings-body'), store, testSound);
+  }
 }
 store.onChange(applySettings);
-applySettings();
 
 // ---------- Game loop ----------
 const loop = new GameLoop((dtMs, now) => {
@@ -86,6 +115,13 @@ const loop = new GameLoop((dtMs, now) => {
     }
     particles.render(ctx);
     updatePill(now);
+
+    if (session.finished && !roundEndHandled) {
+      roundEndHandled = true;
+      input.stop();
+      audio.playFanfare();
+      toggleStatsPanel(true);
+    }
   }
 });
 
@@ -96,10 +132,13 @@ const pillScore = $('pill-score');
 const pillHigh = $('pill-high');
 const statsPanel = $('stats-panel');
 let pillLastSecond = -1;
+let roundEndHandled = false;
 
 function updatePill(now: number): void {
   if (!session) return;
-  const sec = Math.floor(session.elapsedMs(now) / 1000);
+  // Count down: the pill shows time remaining in the round.
+  const remainMs = Math.max(0, session.roundDurationMs - session.elapsedMs(now));
+  const sec = Math.ceil(remainMs / 1000);
   if (sec !== pillLastSecond) {
     pillLastSecond = sec;
     pillTime.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
@@ -113,7 +152,7 @@ function currentStats(): SessionStats | null {
     falseAlarms: session.falseAlarms,
     variant: store.get().variant,
     startedAtIso: sessionStartIso,
-    durationMs: session.elapsedMs(performance.now()),
+    durationMs: Math.min(session.elapsedMs(performance.now()), session.roundDurationMs),
     pointerTypesUsed: [...session.pointerTypesUsed],
     pxPerMm: store.get().calibration.pxPerMm,
     highScore,
@@ -169,7 +208,9 @@ function buildVariantPicker(): void {
     card.type = 'button';
     card.setAttribute('role', 'radio');
     card.setAttribute('aria-checked', String(store.get().variant === v.id));
-    card.innerHTML = `<h3>${v.label}</h3><p>${v.tagline}</p>`;
+    const label = t(`variant.${v.id}.label` as Parameters<typeof t>[0]);
+    const tagline = t(`variant.${v.id}.tagline` as Parameters<typeof t>[0]);
+    card.innerHTML = `<h3>${label}</h3><p>${tagline}</p>`;
     card.addEventListener('click', () => {
       store.update((s) => { s.variant = v.id as GameVariantId; });
       for (const c of variantPicker.children) c.setAttribute('aria-checked', 'false');
@@ -203,6 +244,8 @@ function startGame(): void {
     },
     highScore,
   );
+  session.roundDurationMs = s.roundDurationSec * 1000;
+  roundEndHandled = false;
   pillScore.textContent = '0';
   pillHigh.textContent = `★ ${highScore}`;
   pillLastSecond = -1;
@@ -217,6 +260,7 @@ function endSession(): void {
   input.stop();
   loop.stop();
   session = null;
+  roundEndHandled = false;
   pill.hidden = true;
   splash.hidden = false;
   ctx.clearRect(0, 0, cssW, cssH);
@@ -246,7 +290,10 @@ function openSettings(): void {
 function closeSettings(): void {
   settingsEl.hidden = true;
 }
-$('link-settings').addEventListener('click', openSettings);
+// Delegated: the settings link inside the splash note is re-created on language switch.
+document.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).id === 'link-settings') openSettings();
+});
 $('btn-close-settings').addEventListener('click', closeSettings);
 $('btn-done-settings').addEventListener('click', closeSettings);
 $('btn-reset-settings').addEventListener('click', () => {
@@ -265,6 +312,9 @@ function checkOrientation(): void {
 window.matchMedia('(orientation: portrait)').addEventListener('change', checkOrientation);
 window.addEventListener('resize', checkOrientation);
 checkOrientation();
+
+// Initial application (also resolves language and translates the static UI if needed).
+applySettings();
 
 // Render one backdrop frame behind the splash so the page never flashes white.
 drawBackdrop(ctx, cssW, cssH, 0, store.get().accessibility.invertColors);

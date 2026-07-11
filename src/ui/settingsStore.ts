@@ -35,6 +35,8 @@ export function defaultSettings(): Settings {
     },
     difficulty: { ...DIFFICULTY_PRESETS.standard },
     variant: 'random',
+    roundDurationSec: 60,
+    language: 'auto',
   };
 }
 
@@ -61,6 +63,8 @@ export class SettingsStore {
         calibration: { ...base.calibration, ...saved.calibration },
         difficulty: clampDifficulty({ ...base.difficulty, ...saved.difficulty }),
         variant: saved.variant ?? base.variant,
+        roundDurationSec: Math.min(600, Math.max(15, saved.roundDurationSec ?? base.roundDurationSec)),
+        language: saved.language ?? base.language,
       };
     } catch {
       return base;

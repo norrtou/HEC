@@ -1,17 +1,12 @@
 import { jsPDF } from 'jspdf';
 import type { SessionStats } from '../types';
 import { ALL_ZONES } from './StatsEngine';
+import { t } from '../i18n';
 
 const INK = '#14141c';
 const ACCENT = '#0e8f84';
 const MUTED = '#6b6b78';
 const LIGHT = '#e8e6df';
-
-const VARIANT_LABELS: Record<string, string> = {
-  rising: 'Stigande bubblor',
-  random: 'Slumpvis dyk',
-  grid: 'Rutnät',
-};
 
 /** One-page A4 landscape report: key figures, reaction-time trend, zone heatmap, aggregate table. */
 export function exportPdf(stats: SessionStats): void {
@@ -25,26 +20,27 @@ export function exportPdf(stats: SessionStats): void {
   doc.setTextColor('#ffffff');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('HEC — Hand-Eye Coordination Report', M, 11);
+  doc.text(t('pdf.title'), M, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   const started = new Date(stats.meta.startedAt);
   const dateStr = started.toLocaleString(stats.meta.language || 'sv-SE');
+  const variantLabel = t(`variant.${stats.meta.variant}.label` as Parameters<typeof t>[0]);
   doc.text(
-    `${dateStr}  ·  Variant: ${VARIANT_LABELS[stats.meta.variant] ?? stats.meta.variant}  ·  Längd: ${(stats.meta.durationMs / 1000).toFixed(0)} s  ·  Pekdon: ${stats.meta.pointerTypesUsed.join(', ') || '–'}`,
+    `${dateStr}  ·  ${t('pdf.variant')}: ${variantLabel}  ·  ${t('pdf.duration')}: ${(stats.meta.durationMs / 1000).toFixed(0)} s  ·  ${t('pdf.pointer')}: ${stats.meta.pointerTypesUsed.join(', ') || '–'}`,
     M, 17,
   );
   doc.setTextColor('#9ad8d1');
-  doc.text('Norrtou Creations · norrtou.se · Inga data sparas — rapporten genereras lokalt i din webbläsare.', M, 21.5);
+  doc.text(t('pdf.privacy'), M, 21.5);
 
   // ---- Key figure tiles ----
   const tiles: [string, string][] = [
-    ['Träffar', `${stats.hitCount}/${stats.count} (${stats.hitRatePct}%)`],
-    ['Median reaktionstid', stats.medianReactionMs !== null ? `${stats.medianReactionMs} ms` : '–'],
-    ['Snitt reaktionstid', stats.meanReactionMs !== null ? `${stats.meanReactionMs} ms ± ${stats.sdReactionMs ?? 0}` : '–'],
-    ['Precision (snittfel)', stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm` : '–'],
-    ['Felklick', `${stats.falseAlarmCount} (${stats.falseAlarmRatePct}%)`],
-    ['Poäng (bästa)', `${stats.highScore}`],
+    [t('stats.hits'), `${stats.hitCount}/${stats.count} (${stats.hitRatePct}%)`],
+    [t('stats.medianRt'), stats.medianReactionMs !== null ? `${stats.medianReactionMs} ms` : '–'],
+    [t('stats.meanRt'), stats.meanReactionMs !== null ? `${stats.meanReactionMs} ms ± ${stats.sdReactionMs ?? 0}` : '–'],
+    [t('stats.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm` : '–'],
+    [t('stats.falseClicks'), `${stats.falseAlarmCount} (${stats.falseAlarmRatePct}%)`],
+    [t('pdf.score'), `${stats.highScore}`],
   ];
   const tileW = (W - M * 2 - 5 * 4) / 6;
   tiles.forEach(([label, value], i) => {
@@ -67,7 +63,7 @@ export function exportPdf(stats: SessionStats): void {
   // ---- Reaction time over trials (line chart) ----
   const rtChartX = M;
   const rtChartW = 150;
-  drawSectionTitle(doc, 'Reaktionstid per träff (ms)', rtChartX, chartTop - 2);
+  drawSectionTitle(doc, t('pdf.rtPerHit'), rtChartX, chartTop - 2);
   const rts = stats.trials.filter((t) => t.reactionTimeMs !== null).map((t) => t.reactionTimeMs!);
   drawAxes(doc, rtChartX, chartTop, rtChartW, chartH);
   if (rts.length > 0) {
@@ -94,7 +90,7 @@ export function exportPdf(stats: SessionStats): void {
       doc.setLineDashPattern([1.5, 1.5], 0);
       doc.line(rtChartX + 6, my, rtChartX + rtChartW - 6, my);
       doc.setLineDashPattern([], 0);
-      doc.text(`median ${stats.medianReactionMs}`, rtChartX + rtChartW - 28, my - 1.5);
+      doc.text(`${t('pdf.median')} ${stats.medianReactionMs}`, rtChartX + rtChartW - 28, my - 1.5);
     }
   } else {
     drawEmpty(doc, rtChartX, chartTop, rtChartW, chartH);
@@ -103,7 +99,7 @@ export function exportPdf(stats: SessionStats): void {
   // ---- Zone heatmap (3x3 hit rate) ----
   const hmX = rtChartX + rtChartW + 12;
   const hmSize = chartH;
-  drawSectionTitle(doc, 'Träffsäkerhet per skärmzon', hmX, chartTop - 2);
+  drawSectionTitle(doc, t('pdf.zoneAccuracy'), hmX, chartTop - 2);
   const cell = hmSize / 3;
   ALL_ZONES.forEach((zone, idx) => {
     const col = idx % 3;
@@ -133,13 +129,13 @@ export function exportPdf(stats: SessionStats): void {
 
   // ---- Directional bias ----
   const dbX = hmX + hmSize + 12;
-  drawSectionTitle(doc, 'Missar per riktning', dbX, chartTop - 2);
+  drawSectionTitle(doc, t('pdf.missByDirection'), dbX, chartTop - 2);
   const bias = stats.directionalBias;
   const biasRows: [string, number][] = [
-    ['Vänster', bias.leftMissRatePct],
-    ['Höger', bias.rightMissRatePct],
-    ['Övre', bias.topMissRatePct],
-    ['Nedre', bias.bottomMissRatePct],
+    [t('pdf.left'), bias.leftMissRatePct],
+    [t('pdf.right'), bias.rightMissRatePct],
+    [t('pdf.top'), bias.topMissRatePct],
+    [t('pdf.bottom'), bias.bottomMissRatePct],
   ];
   const barMaxW = W - M - dbX - 22;
   biasRows.forEach(([label, val], i) => {
@@ -158,15 +154,15 @@ export function exportPdf(stats: SessionStats): void {
 
   // ---- Aggregate table ----
   const tblY = chartTop + chartH + 12;
-  drawSectionTitle(doc, 'Sammanställning', M, tblY - 2);
+  drawSectionTitle(doc, t('pdf.summary'), M, tblY - 2);
   const romStr = stats.rangeOfMotionMm ? `${stats.rangeOfMotionMm.w} × ${stats.rangeOfMotionMm.h} mm` : '–';
   const rows: [string, string][] = [
-    ['Antal mål / träffar / missar', `${stats.count} / ${stats.hitCount} / ${stats.missCount}`],
-    ['Reaktionstid (median / snitt / SD / bästa)', `${fmt(stats.medianReactionMs)} / ${fmt(stats.meanReactionMs)} / ${fmt(stats.sdReactionMs)} / ${fmt(stats.bestReactionMs)} ms`],
-    ['Precision, avstånd från målcentrum (snitt)', stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
-    ['Rörelseomfång (ROM), bredd × höjd', romStr],
-    ['Felklick utanför mål', `${stats.falseAlarmCount} st (${stats.falseAlarmRatePct}%)`],
-    ['Skala', `${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? '(kalibrerad)' : '(nominell 96 dpi — kalibrera i Inställningar för exakta mm)'}`],
+    [t('pdf.row.counts'), `${stats.count} / ${stats.hitCount} / ${stats.missCount}`],
+    [t('pdf.row.rt'), `${fmt(stats.medianReactionMs)} / ${fmt(stats.meanReactionMs)} / ${fmt(stats.sdReactionMs)} / ${fmt(stats.bestReactionMs)} ms`],
+    [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
+    [t('pdf.row.rom'), romStr],
+    [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    [t('pdf.row.scale'), `${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? t('pdf.scale.calibrated') : t('pdf.scale.nominal')}`],
   ];
   doc.setFontSize(8);
   const colSplit = 105;
@@ -192,12 +188,12 @@ export function exportPdf(stats: SessionStats): void {
   doc.setTextColor(MUTED);
   doc.setFontSize(6.5);
   const env = [
-    `Webbläsare: ${stats.meta.userAgent}`,
-    `Skärm: ${stats.meta.screenW}×${stats.meta.screenH} @ ${stats.meta.devicePixelRatio}x` +
-      (stats.meta.hardwareConcurrency ? `  ·  CPU-trådar: ${stats.meta.hardwareConcurrency}` : '') +
-      (stats.meta.deviceMemoryGb ? `  ·  Minne: minst ${stats.meta.deviceMemoryGb} GB` : '') +
-      `  ·  Tidszon: ${stats.meta.timeZone}  ·  Språk: ${stats.meta.language}`,
-    'OBS: Jämför endast resultat som uppmätts på samma enhet, webbläsare och pekdon — hårdvarans latens och skärmstorlek påverkar mätvärdena.',
+    `${t('pdf.browser')}: ${stats.meta.userAgent}`,
+    `${t('pdf.screen')}: ${stats.meta.screenW}×${stats.meta.screenH} @ ${stats.meta.devicePixelRatio}x` +
+      (stats.meta.hardwareConcurrency ? `  ·  ${t('pdf.cpuThreads')}: ${stats.meta.hardwareConcurrency}` : '') +
+      (stats.meta.deviceMemoryGb ? `  ·  ${t('pdf.memoryAtLeast', { v: stats.meta.deviceMemoryGb })}` : '') +
+      `  ·  ${t('pdf.timezone')}: ${stats.meta.timeZone}  ·  ${t('pdf.language')}: ${stats.meta.language}`,
+    t('pdf.note'),
   ];
   env.forEach((line, i) => doc.text(line, M, footY + i * 3.4, { maxWidth: W - M * 2 }));
 
@@ -228,5 +224,5 @@ function drawAxes(doc: jsPDF, x: number, y: number, w: number, h: number): void 
 function drawEmpty(doc: jsPDF, x: number, y: number, w: number, h: number): void {
   doc.setTextColor(MUTED);
   doc.setFontSize(8);
-  doc.text('Inga träffar registrerade', x + w / 2, y + h / 2, { align: 'center' });
+  doc.text(t('pdf.noHits'), x + w / 2, y + h / 2, { align: 'center' });
 }

@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
 import { DIFFICULTY_LIMITS, DIFFICULTY_PRESETS } from '../game/DifficultyModel';
 import type { SettingsStore } from './settingsStore';
+import { t } from '../i18n';
 
 interface SliderSpec {
   label: string;
@@ -74,19 +75,60 @@ function toggleRow(store: SettingsStore, spec: ToggleSpec): HTMLElement {
   return row;
 }
 
+function fmtDuration(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m === 0) return `${s} s`;
+  return s === 0 ? `${m} min` : `${m}:${String(s).padStart(2, '0')} min`;
+}
+
 export function buildSettingsPanel(container: HTMLElement, store: SettingsStore, onTestSound?: () => void): void {
   container.replaceChildren();
 
+  // ---- Språk / Language ----
+  container.append(el('h3', undefined, t('set.lang')));
+  const langRow = el('div', 'setting-row');
+  const langWrap = el('div');
+  langWrap.setAttribute('role', 'radiogroup');
+  langWrap.setAttribute('aria-label', t('set.lang'));
+  const langOptions: [Settings['language'], string][] = [
+    ['auto', t('set.lang.auto')],
+    ['sv', 'Svenska'],
+    ['en', 'English'],
+  ];
+  for (const [value, label] of langOptions) {
+    const b = el('button', 'btn btn-quiet', label);
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(store.get().language === value));
+    if (store.get().language === value) b.classList.add('btn-accent');
+    b.addEventListener('click', () => store.update((s) => { s.language = value; }));
+    langWrap.append(b);
+  }
+  langRow.append(langWrap);
+  container.append(langRow);
+
   // ---- Tempo & svårighet ----
-  container.append(el('h3', undefined, 'Tempo & svårighet'));
+  container.append(el('h3', undefined, t('set.tempo')));
+
+  container.append(
+    sliderRow(store, {
+      label: t('set.roundDuration'),
+      hint: t('set.roundDuration.hint'),
+      min: 15, max: 600, step: 15,
+      get: (s) => s.roundDurationSec,
+      set: (s, v) => { s.roundDurationSec = v; },
+      format: fmtDuration,
+    }),
+  );
 
   const presetRow = el('div', 'setting-row');
   const presetLabel = el('label');
-  presetLabel.append('Utgångsläge');
-  presetLabel.append(el('span', 'hint', 'Startpunkt — varje reglage nedan kan sedan finjusteras fritt.'));
+  presetLabel.append(t('set.preset'));
+  presetLabel.append(el('span', 'hint', t('set.preset.hint')));
   const presetWrap = el('div');
   (['calm', 'standard', 'fast'] as const).forEach((p) => {
-    const names = { calm: 'Lugn', standard: 'Standard', fast: 'Snabb' };
+    const names = { calm: t('set.preset.calm'), standard: t('set.preset.standard'), fast: t('set.preset.fast') };
     const b = el('button', 'btn btn-quiet', names[p]);
     b.type = 'button';
     b.addEventListener('click', () => store.update((s) => { s.difficulty = { ...DIFFICULTY_PRESETS[p] }; }));
@@ -98,37 +140,37 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   const L = DIFFICULTY_LIMITS;
   container.append(
     sliderRow(store, {
-      label: 'Tid mellan bubblor',
+      label: t('set.spawnInterval'),
       min: L.spawnIntervalMs.min, max: L.spawnIntervalMs.max, step: L.spawnIntervalMs.step,
       get: (s) => s.difficulty.spawnIntervalMs,
       set: (s, v) => { s.difficulty.spawnIntervalMs = v; },
       format: (v) => `${(v / 1000).toFixed(2)} s`,
     }),
     sliderRow(store, {
-      label: 'Bubblans livslängd',
-      hint: 'Hur länge en bubbla finns kvar innan den räknas som miss.',
+      label: t('set.lifetime'),
+      hint: t('set.lifetime.hint'),
       min: L.targetLifetimeMs.min, max: L.targetLifetimeMs.max, step: L.targetLifetimeMs.step,
       get: (s) => s.difficulty.targetLifetimeMs,
       set: (s, v) => { s.difficulty.targetLifetimeMs = v; },
       format: (v) => `${(v / 1000).toFixed(1)} s`,
     }),
     sliderRow(store, {
-      label: 'Bubblans storlek',
+      label: t('set.size'),
       min: L.targetRadiusPx.min, max: L.targetRadiusPx.max, step: L.targetRadiusPx.step,
       get: (s) => s.difficulty.targetRadiusPx,
       set: (s, v) => { s.difficulty.targetRadiusPx = v; },
       format: (v) => `${v} px`,
     }),
     sliderRow(store, {
-      label: 'Max antal samtidigt',
+      label: t('set.maxConcurrent'),
       min: L.maxConcurrent.min, max: L.maxConcurrent.max, step: L.maxConcurrent.step,
       get: (s) => s.difficulty.maxConcurrent,
       set: (s, v) => { s.difficulty.maxConcurrent = v; },
       format: (v) => `${v}`,
     }),
     sliderRow(store, {
-      label: 'Rörelsehastighet',
-      hint: 'Gäller varianter där bubblorna rör sig.',
+      label: t('set.speed'),
+      hint: t('set.speed.hint'),
       min: L.speedPxPerSec.min, max: L.speedPxPerSec.max, step: L.speedPxPerSec.step,
       get: (s) => s.difficulty.speedPxPerSec,
       set: (s, v) => { s.difficulty.speedPxPerSec = v; },
@@ -137,31 +179,31 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   );
 
   // ---- Motorik ----
-  container.append(el('h3', undefined, 'Motorik & träffytor'));
+  container.append(el('h3', undefined, t('set.motor')));
   container.append(
     sliderRow(store, {
-      label: 'Förstorad träffyta',
-      hint: 'Osynlig extra marginal runt varje bubbla. Precisionen mäts fortfarande mot bubblans mittpunkt.',
+      label: t('set.hitbox'),
+      hint: t('set.hitbox.hint'),
       min: 0, max: 60, step: 2,
       get: (s) => s.motor.hitboxPaddingPx,
       set: (s, v) => { s.motor.hitboxPaddingPx = v; },
-      format: (v) => (v === 0 ? 'Av' : `+${v} px`),
+      format: (v) => (v === 0 ? t('set.off') : `+${v} px`),
     }),
     toggleRow(store, {
-      label: 'Ignorera darrningar',
-      hint: 'Filtrerar bort upprepade tryck tätt inpå varandra (t.ex. vid tremor) så de inte räknas som felklick.',
+      label: t('set.tremor'),
+      hint: t('set.tremor.hint'),
       get: (s) => s.motor.tremorFilterEnabled,
       set: (s, v) => { s.motor.tremorFilterEnabled = v; },
     }),
     sliderRow(store, {
-      label: 'Darrfilter: radie',
+      label: t('set.tremorRadius'),
       min: 10, max: 80, step: 5,
       get: (s) => s.motor.tremorFilterRadiusPx,
       set: (s, v) => { s.motor.tremorFilterRadiusPx = v; },
       format: (v) => `${v} px`,
     }),
     sliderRow(store, {
-      label: 'Darrfilter: tidsfönster',
+      label: t('set.tremorWindow'),
       min: 100, max: 800, step: 50,
       get: (s) => s.motor.tremorFilterWindowMs,
       set: (s, v) => { s.motor.tremorFilterWindowMs = v; },
@@ -170,60 +212,60 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   );
 
   // ---- Tillgänglighet ----
-  container.append(el('h3', undefined, 'Tillgänglighet & utseende'));
+  container.append(el('h3', undefined, t('set.a11y')));
   container.append(
     toggleRow(store, {
-      label: 'Inverterade färger',
-      hint: 'Ljus bakgrund med mörka detaljer i stället för svart.',
+      label: t('set.invert'),
+      hint: t('set.invert.hint'),
       get: (s) => s.accessibility.invertColors,
       set: (s, v) => { s.accessibility.invertColors = v; },
     }),
     toggleRow(store, {
-      label: 'Extra kontrast på bubblor',
-      hint: 'Vit konturlinje runt varje bubbla.',
+      label: t('set.contrast'),
+      hint: t('set.contrast.hint'),
       get: (s) => s.accessibility.highContrastTargets,
       set: (s, v) => { s.accessibility.highContrastTargets = v; },
     }),
     sliderRow(store, {
-      label: 'Gränssnittets skala',
+      label: t('set.uiScale'),
       min: 0.8, max: 1.6, step: 0.05,
       get: (s) => s.accessibility.uiScale,
       set: (s, v) => { s.accessibility.uiScale = v; },
       format: (v) => `${Math.round(v * 100)}%`,
     }),
     sliderRow(store, {
-      label: 'Textstorlek',
+      label: t('set.fontScale'),
       min: 0.9, max: 1.4, step: 0.05,
       get: (s) => s.accessibility.fontScale,
       set: (s, v) => { s.accessibility.fontScale = v; },
       format: (v) => `${Math.round(v * 100)}%`,
     }),
     toggleRow(store, {
-      label: 'Minska rörelser',
-      hint: 'Färre partiklar och animationer. Påverkar inte mätningarna.',
+      label: t('set.reduceMotion'),
+      hint: t('set.reduceMotion.hint'),
       get: (s) => s.accessibility.reduceMotion,
       set: (s, v) => { s.accessibility.reduceMotion = v; },
     }),
   );
 
   // ---- Ljud & haptik ----
-  container.append(el('h3', undefined, 'Ljud & haptik'));
+  container.append(el('h3', undefined, t('set.audio')));
   container.append(
     toggleRow(store, {
-      label: 'Ljud',
+      label: t('set.sound'),
       get: (s) => s.audio.soundEnabled,
       set: (s, v) => { s.audio.soundEnabled = v; },
     }),
     sliderRow(store, {
-      label: 'Volym',
+      label: t('set.volume'),
       min: 0, max: 1, step: 0.05,
       get: (s) => s.audio.soundVolume,
       set: (s, v) => { s.audio.soundVolume = v; },
       format: (v) => `${Math.round(v * 100)}%`,
     }),
     toggleRow(store, {
-      label: 'Vibration',
-      hint: 'Om enheten stöder det.',
+      label: t('set.haptics'),
+      hint: t('set.haptics.hint'),
       get: (s) => s.audio.hapticsEnabled,
       set: (s, v) => { s.audio.hapticsEnabled = v; },
     }),
@@ -231,9 +273,9 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   if (onTestSound) {
     const testRow = el('div', 'setting-row');
     const testLabel = el('label');
-    testLabel.append('Testa ljudet');
-    testLabel.append(el('span', 'hint', 'Spelar upp pop-ljudet så du kan kontrollera volym och att ljudet fungerar.'));
-    const testBtn = el('button', 'btn', 'Spela pop');
+    testLabel.append(t('set.testSound'));
+    testLabel.append(el('span', 'hint', t('set.testSound.hint')));
+    const testBtn = el('button', 'btn', t('set.playPop'));
     testBtn.type = 'button';
     testBtn.addEventListener('click', onTestSound);
     testRow.append(testLabel, testBtn);
@@ -241,11 +283,9 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   }
 
   // ---- Kalibrering ----
-  container.append(el('h3', undefined, 'Kalibrering (mm-precision)'));
+  container.append(el('h3', undefined, t('set.calib')));
   const box = el('div', 'calib-box');
-  const desc = el('p', undefined,
-    'Utan kalibrering antas standardupplösning (96 dpi), vilket kan slå fel på verkliga millimetermått. ' +
-    'Lägg ett vanligt betalkort mot skärmen och dra reglaget tills fältet nedan är exakt lika brett som kortet (85,6 mm).');
+  const desc = el('p', undefined, t('set.calib.desc'));
   desc.style.margin = '0';
   const bar = el('div', 'calib-bar');
   const slider = el('input');
@@ -254,26 +294,26 @@ export function buildSettingsPanel(container: HTMLElement, store: SettingsStore,
   slider.max = '700';
   slider.step = '1';
   slider.style.width = '100%';
-  slider.setAttribute('aria-label', 'Kalibrera skärmens millimeterskala');
+  slider.setAttribute('aria-label', t('set.calib.aria'));
   const CARD_MM = 85.6;
   const current = store.get().calibration.pxPerMm;
   const startPx = current ? current * CARD_MM : (96 / 25.4) * CARD_MM;
   slider.value = String(Math.round(startPx));
   bar.style.width = `${slider.value}px`;
-  const status = el('p', undefined, current ? `Kalibrerad: ${current.toFixed(2)} px/mm` : 'Ej kalibrerad — nominell skala används.');
+  const status = el('p', undefined, current ? t('set.calib.done', { v: current.toFixed(2) }) : t('set.calib.none'));
   status.style.margin = '0';
   slider.addEventListener('input', () => {
     bar.style.width = `${slider.value}px`;
     const pxPerMm = Number(slider.value) / CARD_MM;
     store.update((s) => { s.calibration.pxPerMm = Math.round(pxPerMm * 100) / 100; });
-    status.textContent = `Kalibrerad: ${pxPerMm.toFixed(2)} px/mm`;
+    status.textContent = t('set.calib.done', { v: pxPerMm.toFixed(2) });
   });
-  const clearBtn = el('button', 'btn btn-quiet', 'Rensa kalibrering');
+  const clearBtn = el('button', 'btn btn-quiet', t('set.calib.clear'));
   clearBtn.type = 'button';
   clearBtn.style.marginTop = '0.6rem';
   clearBtn.addEventListener('click', () => {
     store.update((s) => { s.calibration.pxPerMm = null; });
-    status.textContent = 'Ej kalibrerad — nominell skala används.';
+    status.textContent = t('set.calib.none');
   });
   box.append(desc, bar, slider, status, clearBtn);
   container.append(box);

@@ -15,8 +15,6 @@ export interface PlayArea {
 
 export interface GameVariant {
   id: GameVariantId;
-  label: string;
-  tagline: string;
   /** Pick where the next target should appear. */
   nextSpawn(area: PlayArea, radius: number, seq: number): SpawnPoint;
   /** Has this target expired for a reason other than the shared lifetime timer? (e.g. drifted off-screen) */
@@ -29,8 +27,6 @@ function rand(min: number, max: number): number {
 
 export const RisingVariant: GameVariant = {
   id: 'rising',
-  label: 'Stigande bubblor',
-  tagline: 'Bubblor stiger underifrån — träffa dem innan de flyter ut ur bild.',
   nextSpawn(area, radius, _seq) {
     const x = rand(area.marginPx + radius, area.w - area.marginPx - radius);
     const y = area.h + radius + rand(0, 40);
@@ -43,8 +39,6 @@ export const RisingVariant: GameVariant = {
 
 export const RandomPopVariant: GameVariant = {
   id: 'random',
-  label: 'Slumpvis dyk',
-  tagline: 'Bubblor dyker upp slumpmässigt var som helst på skärmen.',
   nextSpawn(area, radius, _seq) {
     const x = rand(area.marginPx + radius, area.w - area.marginPx - radius);
     const y = rand(area.topSafeMarginPx + radius, area.h - area.marginPx - radius);
@@ -71,8 +65,6 @@ export const GridVariant: GameVariant = (() => {
 
   return {
     id: 'grid',
-    label: 'Rutnät',
-    tagline: 'Ett rutnät med 9 zoner — träffa rätt zon så snabbt du kan.',
     nextSpawn(area, _radius) {
       if (cursor >= order.length) reshuffle();
       const idx = order[cursor++];

@@ -24,6 +24,10 @@ export class GameSession {
   score = 0;
   highScore = 0;
   startedAt = performance.now();
+  roundDurationMs = 60_000;
+  /** true once the round timer has elapsed and all bubbles have faded out */
+  finished = false;
+  private timeUp = false;
 
   private lastSpawnTime = 0;
   private seq = 0;
@@ -94,7 +98,19 @@ export class GameSession {
   update(dtMs: number, now: number, w: number, h: number): void {
     this.areaW = w;
     this.areaH = h;
-    this.trySpawn(now, w, h);
+
+    if (!this.timeUp && this.elapsedMs(now) >= this.roundDurationMs) {
+      this.timeUp = true;
+      // Round is over: fade out remaining live bubbles without recording them
+      // as misses — the player never got their full lifetime to react.
+      for (const b of this.bubbles) {
+        if (b.state === 'alive' || b.state === 'growing') {
+          b.state = 'expiring';
+          b.stateStart = now;
+        }
+      }
+    }
+    if (!this.timeUp) this.trySpawn(now, w, h);
     const area = this.playArea(w, h);
 
     for (const b of this.bubbles) {
@@ -130,10 +146,15 @@ export class GameSession {
 
     this.bubbles = this.bubbles.filter((b) => b.state !== 'dead');
     this.particles.update(dtMs);
+
+    if (this.timeUp && !this.finished && this.bubbles.length === 0 && this.particles.count === 0) {
+      this.finished = true;
+    }
   }
 
   /** Process pointerdown samples captured earlier by the InputManager. Hit-testing (the "expensive" step) happens here, decoupled from the raw event. */
   processSamples(samples: RawPointerSample[]): void {
+    if (this.timeUp) return;
     for (const s of samples) {
       this.pointerTypesUsed.add(s.pointerType);
 

@@ -57,6 +57,9 @@ export interface Settings {
   calibration: CalibrationSettings;
   difficulty: DifficultyParams;
   variant: GameVariantId;
+  /** seconds; a round ends automatically when this elapses */
+  roundDurationSec: number;
+  language: 'auto' | 'sv' | 'en';
 }
 
 export type TrialResult = 'hit' | 'miss';

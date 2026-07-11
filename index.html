@@ -56,7 +56,7 @@
     <section id="stats-panel" class="stats-panel" aria-label="Statistik" hidden>
       <div class="stats-grid" id="stats-grid"></div>
       <details class="stats-details">
-        <summary>Alla mätvärden</summary>
+        <summary id="i18n-all-metrics">Alla mätvärden</summary>
         <div id="stats-full"></div>
       </details>
       <div class="stats-actions">
@@ -72,18 +72,18 @@
     <div id="splash" class="splash" role="dialog" aria-modal="true" aria-labelledby="splash-title">
       <div class="splash-inner">
         <h1 id="splash-title" class="splash-logo">HEC</h1>
-        <p class="splash-sub">Mät din hand–öga-koordination</p>
+        <p class="splash-sub" id="i18n-splash-sub">Mät din hand–öga-koordination</p>
 
         <div class="variant-picker" role="radiogroup" aria-label="Välj spelvariant" id="variant-picker"></div>
 
         <div class="splash-note">
-          <p><strong>Jämför rättvist:</strong> använd samma enhet, webbläsare och pekdon (mus, penna, platta eller touch) mellan omgångar — tekniken påverkar mätvärdena.</p>
-          <p><strong>Integritet:</strong> inga data sparas eller skickas — allt mäts lokalt och försvinner när du stänger sidan.</p>
-          <p>Finjustera tempo, träffytor och tillgänglighet under <button id="link-settings" class="linklike">Inställningar</button>.</p>
+          <p id="i18n-note-compare"><strong>Jämför rättvist:</strong> använd samma enhet, webbläsare och pekdon (mus, penna, platta eller touch) mellan omgångar — tekniken påverkar mätvärdena.</p>
+          <p id="i18n-note-privacy"><strong>Integritet:</strong> inga data sparas eller skickas — allt mäts lokalt och försvinner när du stänger sidan.</p>
+          <p id="i18n-note-settings">Finjustera tempo, träffytor och tillgänglighet under <button id="link-settings" class="linklike">Inställningar</button>.</p>
         </div>
 
         <button id="btn-start" class="btn btn-start">Starta spel</button>
-        <p class="splash-credit">Av <a href="https://norrtou.se" rel="author">Norrtou Creations</a></p>
+        <p class="splash-credit" id="i18n-credit">Av <a href="https://norrtou.se" rel="author">Norrtou Creations</a></p>
       </div>
     </div>
 
@@ -109,7 +109,7 @@
           <rect x="4" y="7" width="16" height="10" rx="2"/>
           <path d="M12 2v3M10 3.5L12 5l2-1.5"/>
         </svg>
-        <p>Vrid enheten till liggande läge för att spela.</p>
+        <p id="i18n-gate">Vrid enheten till liggande läge för att spela.</p>
       </div>
     </div>
 
