@@ -52,6 +52,8 @@ export interface BubbleVisual {
   glow: number; // 0..1 glow intensity
   ringProgress?: number; // 0..1 lifetime countdown ring
   highContrast: boolean;
+  /** no-go target: drawn with a prohibition slash so it never relies on color alone */
+  distractor?: boolean;
 }
 
 export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void {
@@ -79,6 +81,17 @@ export function drawBubble(ctx: CanvasRenderingContext2D, b: BubbleVisual): void
     ctx.shadowBlur = 0;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  if (b.distractor) {
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = Math.max(2, r * 0.16);
+    ctx.beginPath();
+    const d = r * 0.55;
+    ctx.moveTo(-d, -d);
+    ctx.lineTo(d, d);
     ctx.stroke();
   }
 

@@ -162,6 +162,14 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.gonogo
+      ? ([[
+          t('pdf.row.gonogo'),
+          `${stats.gonogo.commissionCount}/${stats.gonogo.noGoCount} (${stats.gonogo.commissionRatePct}%)${
+            stats.gonogo.meanCommissionRtMs !== null ? ` · ${stats.gonogo.meanCommissionRtMs} ms` : ''
+          }`,
+        ]] as [string, string][])
+      : []),
     [t('pdf.row.scale'), `${stats.meta.pxPerMm} px/mm ${stats.meta.pxPerMmCalibrated ? t('pdf.scale.calibrated') : t('pdf.scale.nominal')}`],
   ];
   doc.setFontSize(8);

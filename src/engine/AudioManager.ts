@@ -118,6 +118,23 @@ export class AudioManager {
     osc.stop(now + 0.18);
   }
 
+  /** Harsh short buzz for tapping a no-go target — clearly different from the dull miss thud. */
+  playCommission(): void {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(gain).connect(this.master!);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  }
+
   /** Bright ascending chime for a new high score. */
   playFanfare(): void {
     if (!this.ready) return;

@@ -4,6 +4,10 @@ export interface SpawnPoint {
   x: number;
   y: number;
   vy: number; // px/s, signed (negative = upward)
+  /** no-go target: tapping it is an inhibition failure (Go/No-Go variant) */
+  distractor?: boolean;
+  /** fixed color override; default is the cycling palette */
+  color?: string;
 }
 
 export interface PlayArea {
@@ -82,9 +86,45 @@ export const GridVariant: GameVariant = (() => {
   };
 })();
 
+/** Single fixed colors so the go/no-go decision is purely color+marker based. */
+export const GO_COLOR = '#5ee87a';
+export const NOGO_COLOR = '#ff4d5e';
+
+/**
+ * Go/No-Go: spawns like Random pop, but 30% of targets are no-go distractors
+ * that must NOT be tapped. Prevalence is enforced with a shuffled bag (3 of 10)
+ * rather than raw randomness, so every round has the same inhibition load and
+ * no player is punished by a fluke streak of reds.
+ */
+export const GoNoGoVariant: GameVariant = (() => {
+  let bag: boolean[] = [];
+  const refill = () => {
+    bag = [true, true, true, false, false, false, false, false, false, false];
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  return {
+    id: 'gonogo',
+    nextSpawn(area, radius, _seq) {
+      if (bag.length === 0) refill();
+      const distractor = bag.pop()!;
+      const x = rand(area.marginPx + radius, area.w - area.marginPx - radius);
+      const y = rand(area.topSafeMarginPx + radius, area.h - area.marginPx - radius);
+      return { x, y, vy: 0, distractor, color: distractor ? NOGO_COLOR : GO_COLOR };
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
   random: RandomPopVariant,
   grid: GridVariant,
+  gonogo: GoNoGoVariant,
 };

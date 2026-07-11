@@ -128,6 +128,7 @@ const loop = new GameLoop((dtMs, now) => {
         glow: s.accessibility.reduceMotion ? 0 : b.state === 'popping' ? 1 : 0.55,
         ringProgress: b.state === 'alive' && b.vy === 0 ? Math.max(0, remaining) : undefined,
         highContrast: s.accessibility.highContrastTargets,
+        distractor: b.distractor,
       });
     }
     particles.render(ctx);

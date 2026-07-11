@@ -11,6 +11,7 @@ function f(v: number | null, unit = ''): string {
 }
 
 export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats: SessionStats): void {
+  const g = stats.gonogo;
   gridEl.innerHTML = [
     tile(t('stats.hits'), `${stats.hitCount}/${stats.count}`, `${stats.hitRatePct}%`),
     tile(t('stats.medianRt'), f(stats.medianReactionMs), 'ms'),
@@ -18,6 +19,12 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
     tile(t('stats.bestRt'), f(stats.bestReactionMs), 'ms'),
     tile(t('stats.precision'), f(stats.meanErrorMm), 'mm'),
     tile(t('stats.falseClicks'), `${stats.falseAlarmCount}`, `${stats.falseAlarmRatePct}%`),
+    ...(g
+      ? [
+          tile(t('stats.commissions'), `${g.commissionCount}/${g.noGoCount}`, `${g.commissionRatePct}%`),
+          tile(t('stats.commissionRt'), f(g.meanCommissionRtMs), 'ms'),
+        ]
+      : []),
   ].join('');
 
   const bias = stats.directionalBias;

@@ -10,6 +10,12 @@ const GROW_MS = 80;
 const POP_MS = 150;
 const EXPIRE_FADE_MS = 160;
 
+// Go/No-Go scoring: failing to inhibit costs more than a hit earns, and a
+// successfully avoided no-go target pays a small bonus so leaving reds alone
+// feels like an action rather than a non-event.
+const COMMISSION_PENALTY = 150;
+const REJECTION_BONUS = 50;
+
 export interface GameSessionCallbacks {
   onScoreChange?(score: number, delta: number): void;
   onHighScore?(score: number): void;
@@ -89,8 +95,9 @@ export class GameSession {
       point.vy !== 0
         ? ((point.y - area.topSafeMarginPx + r * 2) / this.difficulty.speedPxPerSec) * 1000 + 500
         : this.difficulty.targetLifetimeMs;
-    const b = new Bubble(point.x, point.y, r, pickColor(this.colorSeq++), now, lifetimeMs);
+    const b = new Bubble(point.x, point.y, r, point.color ?? pickColor(this.colorSeq++), now, lifetimeMs);
     b.vy = point.vy * this.difficulty.speedPxPerSec;
+    b.distractor = !!point.distractor;
     this.bubbles.push(b);
   }
 
@@ -163,7 +170,8 @@ export class GameSession {
       const candidate = this.findHitCandidate(s.x, s.y);
       if (candidate) {
         this.acceptTap(s.x, s.y, s.t);
-        this.resolveHit(candidate, s);
+        if (candidate.distractor) this.resolveCommission(candidate, s);
+        else this.resolveHit(candidate, s);
       } else {
         this.acceptTap(s.x, s.y, s.t);
         this.falseAlarms.push({ t: s.t, x: s.x, y: s.y, pointerType: s.pointerType });
@@ -244,11 +252,55 @@ export class GameSession {
     this.callbacks.onTrial?.(trial);
   }
 
+  /** Tap on a no-go target: a failed inhibition. RT is recorded — failed stops are typically faster than go-responses, which is itself informative. */
+  private resolveCommission(b: Bubble, s: RawPointerSample): void {
+    b.state = 'popping';
+    b.stateStart = s.t;
+    this.particles.burst(b.x, b.y, b.color);
+    this.audio.playCommission();
+    this.haptics.miss();
+
+    this.score = Math.max(0, this.score - COMMISSION_PENALTY);
+    this.callbacks.onScoreChange?.(this.score, -COMMISSION_PENALTY);
+
+    const trial: TrialRecord = {
+      id: this.trials.length + 1,
+      variant: this.variant.id,
+      spawnTime: b.spawnTime,
+      resolvedTime: s.t,
+      targetX: b.x,
+      targetY: b.y,
+      targetRadiusPx: b.radius,
+      hitX: s.x,
+      hitY: s.y,
+      result: 'commission',
+      reactionTimeMs: s.t - b.spawnTime,
+      errorPx: Math.sqrt((s.x - b.x) ** 2 + (s.y - b.y) ** 2),
+      pointerType: s.pointerType,
+      zone: b.zoneOf(this.areaW, this.areaH),
+    };
+    this.trials.push(trial);
+    this.callbacks.onTrial?.(trial);
+  }
+
   private resolveMiss(b: Bubble, now: number): void {
     b.state = 'expiring';
     b.stateStart = now;
-    this.audio.playMiss();
-    this.haptics.miss();
+
+    // A no-go target that expired untouched is a correct rejection — the
+    // point of the exercise, not a miss: bonus instead of the miss sound.
+    const rejection = b.distractor;
+    if (rejection) {
+      this.score += REJECTION_BONUS;
+      this.callbacks.onScoreChange?.(this.score, REJECTION_BONUS);
+      if (this.score > this.highScore) {
+        this.highScore = this.score;
+        this.callbacks.onHighScore?.(this.score);
+      }
+    } else {
+      this.audio.playMiss();
+      this.haptics.miss();
+    }
 
     const trial: TrialRecord = {
       id: this.trials.length + 1,
@@ -260,7 +312,7 @@ export class GameSession {
       targetRadiusPx: b.radius,
       hitX: null,
       hitY: null,
-      result: 'miss',
+      result: rejection ? 'rejection' : 'miss',
       reactionTimeMs: null,
       errorPx: null,
       pointerType: 'unknown',

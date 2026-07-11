@@ -58,6 +58,11 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
   const { trials, falseAlarms } = input;
   const hits = trials.filter((t) => t.result === 'hit');
   const misses = trials.filter((t) => t.result === 'miss');
+  // No-go trials (Go/No-Go variant); empty for every other variant.
+  const commissions = trials.filter((t) => t.result === 'commission');
+  const rejections = trials.filter((t) => t.result === 'rejection');
+  // RT and precision describe go-responses only — commission RTs measure a
+  // different thing (failed inhibition) and are reported separately.
   const rts = hits.map((t) => t.reactionTimeMs!).filter((v) => v != null);
   const errs = hits.map((t) => t.errorPx!).filter((v) => v != null);
 
@@ -65,8 +70,8 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
   const meanErrPx = mean(errs);
 
   // Range of motion: bounding box of all registered hit points, in mm.
-  const hxs = hits.map((t) => t.hitX!).concat(falseAlarms.map((f) => f.x));
-  const hys = hits.map((t) => t.hitY!).concat(falseAlarms.map((f) => f.y));
+  const hxs = hits.map((t) => t.hitX!).concat(commissions.map((t) => t.hitX!), falseAlarms.map((f) => f.x));
+  const hys = hits.map((t) => t.hitY!).concat(commissions.map((t) => t.hitY!), falseAlarms.map((f) => f.y));
   const rom =
     hxs.length >= 2
       ? {
@@ -75,9 +80,12 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
         }
       : null;
 
+  // Zone accuracy is a go-target measure: leaving a no-go alone in a zone
+  // says nothing about aiming there, so those trials are excluded.
+  const goTrials = trials.filter((t) => t.result === 'hit' || t.result === 'miss');
   const zoneStats = {} as SessionStats['zoneStats'];
   for (const z of ALL_ZONES) {
-    const zTrials = trials.filter((t) => t.zone === z);
+    const zTrials = goTrials.filter((t) => t.zone === z);
     const zHits = zTrials.filter((t) => t.result === 'hit');
     zoneStats[z] = {
       count: zTrials.length,
@@ -110,14 +118,18 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
     pxPerMmCalibrated: input.pxPerMm !== null,
   };
 
+  const noGoCount = commissions.length + rejections.length;
+  const commissionRts = commissions.map((t) => t.reactionTimeMs!).filter((v) => v != null);
+  const meanCommissionRt = mean(commissionRts);
+
   return {
     meta,
     trials,
     falseAlarmCount: falseAlarms.length,
-    count: trials.length,
+    count: goTrials.length,
     hitCount: hits.length,
     missCount: misses.length,
-    hitRatePct: pct(hits.length, trials.length),
+    hitRatePct: pct(hits.length, goTrials.length),
     falseAlarmRatePct: pct(falseAlarms.length, hits.length + falseAlarms.length),
     meanReactionMs: mean(rts) !== null ? Math.round(mean(rts)!) : null,
     medianReactionMs: median(rts) !== null ? Math.round(median(rts)!) : null,
@@ -133,6 +145,16 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    gonogo:
+      input.variant === 'gonogo'
+        ? {
+            goCount: goTrials.length,
+            noGoCount,
+            commissionCount: commissions.length,
+            commissionRatePct: pct(commissions.length, noGoCount),
+            meanCommissionRtMs: meanCommissionRt !== null ? Math.round(meanCommissionRt) : null,
+          }
+        : undefined,
     highScore: input.highScore,
   };
 }

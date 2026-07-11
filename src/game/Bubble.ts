@@ -13,6 +13,8 @@ export class Bubble {
   readonly spawnTime: number;
   readonly lifetimeMs: number;
   vy = 0; // used by rising variant, px/s
+  /** no-go target (Go/No-Go variant): tapping it counts as a commission error */
+  distractor = false;
 
   state: BubbleState = 'growing';
   stateStart: number;

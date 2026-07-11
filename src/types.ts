@@ -66,7 +66,12 @@ export interface Settings {
   language: 'auto' | 'sv' | 'en';
 }
 
-export type TrialResult = 'hit' | 'miss';
+/**
+ * Go-targets resolve as hit/miss. No-go targets (Go/No-Go variant) resolve as
+ * commission (tapped when they should have been left) or rejection (correctly
+ * left alone until they expired).
+ */
+export type TrialResult = 'hit' | 'miss' | 'commission' | 'rejection';
 
 export interface FalseAlarm {
   t: number;
@@ -140,6 +145,16 @@ export interface SessionStats {
     rightMissRatePct: number;
     topMissRatePct: number;
     bottomMissRatePct: number;
+  };
+  /** Present only for the Go/No-Go variant. */
+  gonogo?: {
+    goCount: number;
+    noGoCount: number;
+    commissionCount: number;
+    /** commissions / no-go targets — the response-inhibition failure rate */
+    commissionRatePct: number;
+    /** mean RT of failed inhibitions; typically faster than go-RT */
+    meanCommissionRtMs: number | null;
   };
   highScore: number;
 }

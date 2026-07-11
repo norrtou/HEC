@@ -53,7 +53,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Go/No-Go: one checked bubble, one struck-through — act vs withhold.
     id: 'gonogo',
-    implemented: false,
+    implemented: true,
     icon:
       '<circle cx="8" cy="15" r="4.6"/><path d="m6.1 15.1 1.5 1.5 2.6-3"/>' +
       '<circle cx="16.8" cy="7.6" r="3.8"/><path d="m14.1 10.3 5.4-5.4"/>',
