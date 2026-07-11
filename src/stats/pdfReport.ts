@@ -162,6 +162,14 @@ export function exportPdf(stats: SessionStats): void {
     [t('pdf.row.precision'), stats.meanErrorMm !== null ? `${stats.meanErrorMm} mm (${stats.meanErrorPx} px)` : '–'],
     [t('pdf.row.rom'), romStr],
     [t('pdf.row.false'), t('pdf.falseCount', { n: stats.falseAlarmCount, p: stats.falseAlarmRatePct })],
+    ...(stats.pursuit
+      ? ([[
+          t('pdf.row.pursuit'),
+          stats.pursuit.timeOnTargetPct !== null
+            ? `${stats.pursuit.timeOnTargetPct}% · ${stats.pursuit.meanDistMm ?? '–'} mm · RMS ${stats.pursuit.rmsDistMm ?? '–'} mm`
+            : '–',
+        ]] as [string, string][])
+      : []),
     ...(stats.corsi
       ? ([[
           t('pdf.row.corsi'),

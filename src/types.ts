@@ -152,6 +152,14 @@ export interface SessionStats {
     topMissRatePct: number;
     bottomMissRatePct: number;
   };
+  /** Present only for the pursuit tracking variant. Classic pursuit-rotor measures. */
+  pursuit?: {
+    /** share of the round spent with the pointer on the moving target */
+    timeOnTargetPct: number | null;
+    meanDistMm: number | null;
+    /** RMS distance — penalises large excursions more than the mean */
+    rmsDistMm: number | null;
+  };
   /** Present only for the Corsi sequence variant. */
   corsi?: {
     /** longest correctly reproduced sequence — the classic Corsi span */

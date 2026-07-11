@@ -2,10 +2,28 @@ import type { GameVariantId, TrialRecord } from '../types';
 import type { Bubble } from './Bubble';
 
 export interface CorsiReport {
+  kind: 'corsi';
   /** longest correctly reproduced sequence length */
   span: number;
   sequencesCompleted: number;
   sequencesFailed: number;
+}
+
+export interface PursuitReport {
+  kind: 'pursuit';
+  /** ms the target was alive and being measured */
+  totalMs: number;
+  onTargetMs: number;
+  meanDistPx: number | null;
+  rmsDistPx: number | null;
+}
+
+export type VariantReport = CorsiReport | PursuitReport;
+
+export interface PointerPoint {
+  x: number;
+  y: number;
+  t: number;
 }
 
 export interface SpawnPoint {
@@ -38,8 +56,8 @@ export interface PlayArea {
 
 export interface GameVariant {
   id: GameVariantId;
-  /** Pick where the next target should appear. */
-  nextSpawn(area: PlayArea, radius: number, seq: number): SpawnPoint;
+  /** Pick where the next target should appear. speedPxPerSec is the user's difficulty speed, for variants that drive their own motion. */
+  nextSpawn(area: PlayArea, radius: number, seq: number, speedPxPerSec: number): SpawnPoint;
   /** Has this target expired for a reason other than the shared lifetime timer? (e.g. drifted off-screen) */
   isOutOfBounds(x: number, y: number, radius: number, area: PlayArea): boolean;
   /** Pacing the paradigm requires regardless of user difficulty settings. */
@@ -73,12 +91,16 @@ export interface GameVariant {
   onTap?(x: number, y: number): void;
   /** Called after every recorded trial — for variants that adapt (stop-signal staircase). */
   onResolve?(trial: TrialRecord): void;
-  /** Called once per frame with the live bubbles — for variants that animate/phase (Corsi presentation). */
-  onUpdate?(now: number, bubbles: Bubble[]): void;
-  /** While true, pointer input is discarded entirely (Corsi presentation phase). */
+  /**
+   * Called once per frame with the live bubbles and the current pointer
+   * position — for variants that animate/phase (Corsi presentation) or track
+   * continuously (pursuit). A returned number is added to the score.
+   */
+  onUpdate?(now: number, bubbles: Bubble[], pointer: PointerPoint | null): number | void;
+  /** While true, discrete taps are discarded (Corsi presentation, pursuit tracking). */
   ignoreTaps?(): boolean;
-  /** Variant-owned results that cannot be derived from the trial log (Corsi span). */
-  report?(): CorsiReport;
+  /** Variant-owned results that cannot be derived from the trial log (Corsi span, pursuit tracking). */
+  report?(): VariantReport;
   /** Called when a new round starts, so module-level variant state never leaks between rounds. */
   reset?(): void;
 }
@@ -547,7 +569,101 @@ export const CorsiVariant: GameVariant = (() => {
       return true;
     },
     report() {
-      return { span, sequencesCompleted: completed, sequencesFailed: failed };
+      return { kind: 'corsi' as const, span, sequencesCompleted: completed, sequencesFailed: failed };
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
+/**
+ * Pursuit tracking (pursuit rotor analogue): one bubble orbits an elliptical
+ * path at the user's difficulty speed; keep the finger/cursor on it. Measured
+ * per frame: time on target (the classic rotor score) and mean/RMS distance.
+ * Discrete taps are irrelevant and ignored; a mouse counts by hovering, a
+ * finger by staying in contact. Scoring pays ~10 points per second on target.
+ */
+export const PursuitVariant: GameVariant = (() => {
+  let area: PlayArea | null = null;
+  let angle = 0;
+  let speed = 0; // px/s, read once from the bubble's vy channel
+  let lastNow = 0;
+  let totalMs = 0;
+  let onTargetMs = 0;
+  let sumDist = 0;
+  let sumSqDist = 0;
+  let samples = 0;
+  let scoreCarry = 0;
+
+  return {
+    id: 'pursuit',
+    overrides: { maxConcurrent: 1, spawnIntervalMs: 0, lifetimeMultiplier: 1e6 },
+    reset() {
+      area = null;
+      angle = Math.random() * Math.PI * 2;
+      speed = 0;
+      lastNow = 0;
+      totalMs = 0;
+      onTargetMs = 0;
+      sumDist = 0;
+      sumSqDist = 0;
+      samples = 0;
+      scoreCarry = 0;
+    },
+    ignoreTaps() {
+      return true;
+    },
+    nextSpawn(a, radius, _seq, speedPxPerSec) {
+      area = a;
+      speed = speedPxPerSec;
+      const r = Math.max(30, radius * 1.4);
+      // vy stays 0: the bubble is "stationary" to the engine (no traversal
+      // lifetime); onUpdate drives the orbital motion directly.
+      return { x: a.w / 2, y: a.topSafeMarginPx + (a.h - a.topSafeMarginPx - a.marginPx) / 2, vy: 0, radius: r };
+    },
+    onUpdate(now, bubbles, pointer) {
+      const b = bubbles.find((x) => x.state === 'alive' || x.state === 'growing');
+      if (!b || !area) {
+        lastNow = now;
+        return;
+      }
+      const dt = lastNow === 0 ? 0 : Math.min(100, now - lastNow);
+      lastNow = now;
+
+      const cx = area.w / 2;
+      const usableH = area.h - area.topSafeMarginPx - area.marginPx;
+      const cy = area.topSafeMarginPx + usableH / 2;
+      const rx = Math.max(40, (area.w / 2 - area.marginPx - b.radius) * 0.78);
+      const ry = Math.max(40, (usableH / 2 - b.radius) * 0.78);
+      angle += (speed / ((rx + ry) / 2)) * (dt / 1000);
+      b.x = cx + Math.cos(angle) * rx;
+      b.y = cy + Math.sin(angle) * ry;
+
+      if (b.state !== 'alive' || dt === 0) return;
+      totalMs += dt;
+      if (!pointer) return;
+      const dist = Math.hypot(pointer.x - b.x, pointer.y - b.y);
+      samples++;
+      sumDist += dist;
+      sumSqDist += dist * dist;
+      if (dist <= b.radius) {
+        onTargetMs += dt;
+        scoreCarry += dt;
+        b.highlightUntil = now + 40; // glow while tracked: instant feedback
+        const points = Math.floor(scoreCarry / 100); // 10 points per second on target
+        scoreCarry -= points * 100;
+        return points > 0 ? points : undefined;
+      }
+    },
+    report() {
+      return {
+        kind: 'pursuit' as const,
+        totalMs: Math.round(totalMs),
+        onTargetMs: Math.round(onTargetMs),
+        meanDistPx: samples > 0 ? sumDist / samples : null,
+        rmsDistPx: samples > 0 ? Math.sqrt(sumSqDist / samples) : null,
+      };
     },
     isOutOfBounds() {
       return false;
@@ -567,4 +683,5 @@ export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   trails: TrailsVariant,
   stopsignal: StopSignalVariant,
   corsi: CorsiVariant,
+  pursuit: PursuitVariant,
 };

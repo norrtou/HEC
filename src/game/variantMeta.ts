@@ -112,7 +112,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Pursuit: a ball riding a wave — continuous tracking.
     id: 'pursuit',
-    implemented: false,
+    implemented: true,
     icon:
       '<path d="M3 13.5c2.8-5.5 5.7-5.5 8.5 0s5.7 5.5 8.5 0"/>' +
       '<circle cx="11.5" cy="13.5" r="2" fill="currentColor" stroke="none"/>',

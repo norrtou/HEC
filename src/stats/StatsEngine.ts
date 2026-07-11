@@ -8,7 +8,7 @@ import type {
   TrialRecord,
 } from '../types';
 import { TRAILS_WAVE_SIZE } from '../game/Variant';
-import type { CorsiReport } from '../game/Variant';
+import type { VariantReport } from '../game/Variant';
 
 export const ALL_ZONES: ScreenZone[] = [
   'top-left', 'top-center', 'top-right',
@@ -50,8 +50,8 @@ export interface BuildStatsInput {
   falseAlarms: FalseAlarm[];
   /** out-of-order taps in sequence variants (Trail Making) */
   sequenceErrors?: number;
-  /** variant-owned Corsi results (span cannot be derived from the trial log) */
-  corsi?: CorsiReport;
+  /** variant-owned results that cannot be derived from the trial log (Corsi span, pursuit tracking) */
+  report?: VariantReport;
   variant: GameVariantId;
   startedAtIso: string;
   durationMs: number;
@@ -273,11 +273,21 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
     corsi:
-      input.variant === 'corsi' && input.corsi
+      input.report?.kind === 'corsi'
         ? {
-            span: input.corsi.span,
-            sequencesCompleted: input.corsi.sequencesCompleted,
-            sequencesFailed: input.corsi.sequencesFailed,
+            span: input.report.span,
+            sequencesCompleted: input.report.sequencesCompleted,
+            sequencesFailed: input.report.sequencesFailed,
+          }
+        : undefined,
+    pursuit:
+      input.report?.kind === 'pursuit'
+        ? {
+            timeOnTargetPct: input.report.totalMs > 0 ? pct(input.report.onTargetMs, input.report.totalMs) : null,
+            meanDistMm:
+              input.report.meanDistPx !== null ? Math.round((input.report.meanDistPx / pxPerMm) * 100) / 100 : null,
+            rmsDistMm:
+              input.report.rmsDistPx !== null ? Math.round((input.report.rmsDistPx / pxPerMm) * 100) / 100 : null,
           }
         : undefined,
     stopsignal,

@@ -1,6 +1,6 @@
 import type { DifficultyParams, FalseAlarm, MotorSettings, PointerKind, RawPointerSample, TrialRecord } from '../types';
 import { Bubble } from './Bubble';
-import type { GameVariant, PlayArea } from './Variant';
+import type { GameVariant, PlayArea, PointerPoint } from './Variant';
 import { NOGO_COLOR } from './Variant';
 import { pickColor } from '../engine/Renderer';
 import { ParticleSystem } from '../engine/ParticleSystem';
@@ -94,7 +94,7 @@ export class GameSession {
     if (this.variant.canSpawn && !this.variant.canSpawn()) return;
     this.lastSpawnTime = now;
     const area = this.playArea(w, h);
-    const point = this.variant.nextSpawn(area, this.difficulty.targetRadiusPx, this.seq++);
+    const point = this.variant.nextSpawn(area, this.difficulty.targetRadiusPx, this.seq++, this.difficulty.speedPxPerSec);
     // Moving bubbles live until they traverse the screen (out-of-bounds counts
     // as the miss); only stationary ones use the fixed lifetime timer.
     const r = point.radius ?? this.difficulty.targetRadiusPx;
@@ -118,7 +118,7 @@ export class GameSession {
   }
 
   /** Advance animation states + spawn/expire logic. Called every frame. */
-  update(dtMs: number, now: number, w: number, h: number): void {
+  update(dtMs: number, now: number, w: number, h: number, pointer: PointerPoint | null = null): void {
     this.areaW = w;
     this.areaH = h;
 
@@ -173,7 +173,15 @@ export class GameSession {
     }
 
     this.bubbles = this.bubbles.filter((b) => b.state !== 'dead');
-    this.variant.onUpdate?.(now, this.bubbles);
+    const bonus = this.timeUp ? undefined : this.variant.onUpdate?.(now, this.bubbles, pointer);
+    if (bonus) {
+      this.score += bonus;
+      this.callbacks.onScoreChange?.(this.score, bonus);
+      if (this.score > this.highScore) {
+        this.highScore = this.score;
+        this.callbacks.onHighScore?.(this.score);
+      }
+    }
     this.particles.update(dtMs);
 
     if (this.timeUp && !this.finished && this.bubbles.length === 0 && this.particles.count === 0) {

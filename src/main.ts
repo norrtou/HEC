@@ -115,7 +115,7 @@ const loop = new GameLoop((dtMs, now) => {
     // 1) Process input captured since last frame (timestamps were already taken in the event handler)
     session.processSamples(input.drain());
     // 2) Advance game state
-    session.update(dtMs, now, cssW, cssH);
+    session.update(dtMs, now, cssW, cssH, input.position());
     // 3) Render — gate rings first so bubbles pass over them
     const gateY = session.gateY();
     if (gateY !== null) {
@@ -180,7 +180,7 @@ function currentStats(): SessionStats | null {
     trials: session.trials,
     falseAlarms: session.falseAlarms,
     sequenceErrors: session.sequenceErrorCount,
-    corsi: session.variantReport(),
+    report: session.variantReport(),
     variant: store.get().variant,
     startedAtIso: sessionStartIso,
     durationMs: Math.min(session.elapsedMs(performance.now()), session.roundDurationMs),

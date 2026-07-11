@@ -37,6 +37,17 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.itiSd'), f(stats.tapping.sdItiMs), 'ms'),
         ]
       : []),
+    ...(stats.pursuit
+      ? [
+          tile(
+            t('stats.pursuitTot'),
+            stats.pursuit.timeOnTargetPct !== null ? `${stats.pursuit.timeOnTargetPct}` : '–',
+            '%',
+          ),
+          tile(t('stats.pursuitDist'), f(stats.pursuit.meanDistMm), 'mm'),
+          tile(t('stats.pursuitRms'), f(stats.pursuit.rmsDistMm), 'mm'),
+        ]
+      : []),
     ...(stats.corsi
       ? [
           tile(t('stats.corsiSpan'), `${stats.corsi.span}`),
