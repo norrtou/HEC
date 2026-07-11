@@ -255,7 +255,7 @@ const en: typeof sv = {
 const dicts: Record<Lang, typeof sv> = { sv, en };
 export type MsgKey = keyof typeof sv;
 
-let current: Lang = 'sv';
+let current: Lang = 'en';
 
 export function resolveLang(setting: LangSetting): Lang {
   if (setting === 'auto') {
@@ -273,7 +273,7 @@ export function getLang(): Lang {
 }
 
 export function t(key: MsgKey, params?: Record<string, string | number>): string {
-  let s: string = dicts[current][key] ?? dicts.sv[key] ?? key;
+  let s: string = dicts[current][key] ?? dicts.en[key] ?? key;
   if (params) for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v));
   return s;
 }
