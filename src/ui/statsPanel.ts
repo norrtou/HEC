@@ -25,6 +25,12 @@ export function renderStatsPanel(gridEl: HTMLElement, fullEl: HTMLElement, stats
           tile(t('stats.commissionRt'), f(g.meanCommissionRtMs), 'ms'),
         ]
       : []),
+    ...(stats.fitts
+      ? [
+          tile(t('stats.throughput'), f(stats.fitts.throughputBps), 'bits/s'),
+          tile(t('stats.mt'), f(stats.fitts.meanMtMs), 'ms'),
+        ]
+      : []),
   ].join('');
 
   const bias = stats.directionalBias;

@@ -122,6 +122,43 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
   const commissionRts = commissions.map((t) => t.reactionTimeMs!).filter((v) => v != null);
   const meanCommissionRt = mean(commissionRts);
 
+  // Fitts throughput, derived from consecutive hits: the variant spawns each
+  // target at an exact distance A from the previous tap point, so A can be
+  // recovered as dist(previous hit → target center) and MT as the inter-tap
+  // interval. Trials after a miss (or the first of a round) have no defined
+  // start point and are excluded, per ISO 9241-9 practice.
+  let fitts: SessionStats['fitts'];
+  if (input.variant === 'fitts') {
+    const byCondition = new Map<string, { ids: number[]; mts: number[] }>();
+    const allIds: number[] = [];
+    const allMts: number[] = [];
+    for (let i = 1; i < trials.length; i++) {
+      const prev = trials[i - 1];
+      const cur = trials[i];
+      if (prev.result !== 'hit' || cur.result !== 'hit' || prev.hitX === null || prev.hitY === null) continue;
+      const a = Math.hypot(cur.targetX - prev.hitX, cur.targetY - prev.hitY);
+      const w = cur.targetRadiusPx * 2;
+      const mt = cur.resolvedTime - prev.resolvedTime;
+      if (mt <= 0 || w <= 0) continue;
+      const id = Math.log2(a / w + 1);
+      const key = `${Math.round(a)}:${Math.round(w)}`;
+      const cond = byCondition.get(key) ?? { ids: [], mts: [] };
+      cond.ids.push(id);
+      cond.mts.push(mt);
+      byCondition.set(key, cond);
+      allIds.push(id);
+      allMts.push(mt);
+    }
+    const conditionTps = [...byCondition.values()].map((c) => mean(c.ids)! / (mean(c.mts)! / 1000));
+    const tp = mean(conditionTps);
+    fitts = {
+      sequenceCount: allMts.length,
+      throughputBps: tp !== null ? Math.round(tp * 100) / 100 : null,
+      meanMtMs: mean(allMts) !== null ? Math.round(mean(allMts)!) : null,
+      meanIdBits: mean(allIds) !== null ? Math.round(mean(allIds)! * 100) / 100 : null,
+    };
+  }
+
   return {
     meta,
     trials,
@@ -145,6 +182,7 @@ export function buildSessionStats(input: BuildStatsInput): SessionStats {
       topMissRatePct: missRateFor(['top-left', 'top-center', 'top-right']),
       bottomMissRatePct: missRateFor(['bottom-left', 'bottom-center', 'bottom-right']),
     },
+    fitts,
     gonogo:
       input.variant === 'gonogo'
         ? {

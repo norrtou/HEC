@@ -146,6 +146,15 @@ export interface SessionStats {
     topMissRatePct: number;
     bottomMissRatePct: number;
   };
+  /** Present only for the Fitts tapping variant. */
+  fitts?: {
+    /** trials with a valid movement (previous tap → hit), i.e. consecutive hits */
+    sequenceCount: number;
+    /** ISO 9241-9-style throughput: mean over conditions of meanID / meanMT */
+    throughputBps: number | null;
+    meanMtMs: number | null;
+    meanIdBits: number | null;
+  };
   /** Present only for the Go/No-Go variant. */
   gonogo?: {
     goCount: number;

@@ -61,7 +61,7 @@ export const VARIANT_META: VariantMeta[] = [
   {
     // Fitts: small target ↔ large target — the speed/precision trade-off.
     id: 'fitts',
-    implemented: false,
+    implemented: true,
     icon:
       '<circle cx="4.8" cy="12" r="1.8"/><circle cx="18.2" cy="12" r="3.6"/>' +
       '<path d="M8 12h5M9.6 10.4 8 12l1.6 1.6M11.4 10.4 13 12l-1.6 1.6"/>',

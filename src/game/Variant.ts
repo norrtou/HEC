@@ -8,6 +8,8 @@ export interface SpawnPoint {
   distractor?: boolean;
   /** fixed color override; default is the cycling palette */
   color?: string;
+  /** per-target radius override (Fitts variant varies target width per trial) */
+  radius?: number;
 }
 
 export interface PlayArea {
@@ -23,6 +25,17 @@ export interface GameVariant {
   nextSpawn(area: PlayArea, radius: number, seq: number): SpawnPoint;
   /** Has this target expired for a reason other than the shared lifetime timer? (e.g. drifted off-screen) */
   isOutOfBounds(x: number, y: number, radius: number, area: PlayArea): boolean;
+  /** Pacing the paradigm requires regardless of user difficulty settings. */
+  overrides?: {
+    maxConcurrent?: number;
+    spawnIntervalMs?: number;
+    /** scales the user's target lifetime (e.g. Fitts wants a generous window) */
+    lifetimeMultiplier?: number;
+  };
+  /** Called for every accepted tap — for variants that place targets relative to the pointer. */
+  onTap?(x: number, y: number): void;
+  /** Called when a new round starts, so module-level variant state never leaks between rounds. */
+  reset?(): void;
 }
 
 function rand(min: number, max: number): number {
@@ -121,10 +134,80 @@ export const GoNoGoVariant: GameVariant = (() => {
   };
 })();
 
+/**
+ * Fitts' law tapping (ISO 9241-9 style, adapted to the bubble game): exactly
+ * one target at a time, spawned immediately after the previous tap at an
+ * exactly controlled distance A from the tap point, with one of three target
+ * widths. The 3×3 (amplitude × width) conditions are cycled in shuffled bags
+ * so every round samples the full index-of-difficulty range evenly. Stats are
+ * derived afterwards from the trial log: ID = log2(A/W + 1), MT = inter-tap
+ * time, throughput = ID/MT averaged per condition.
+ */
+export const FittsVariant: GameVariant = (() => {
+  const AMPLITUDE_FRACTIONS = [0.3, 0.52, 0.78]; // × min(screen w, h)
+  const WIDTH_FACTORS = [0.7, 1, 1.4]; // × user's target radius setting
+
+  let bag: [number, number][] = [];
+  const refill = () => {
+    bag = AMPLITUDE_FRACTIONS.flatMap((a) => WIDTH_FACTORS.map((w) => [a, w] as [number, number]));
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  let last: { x: number; y: number } | null = null;
+
+  return {
+    id: 'fitts',
+    overrides: { maxConcurrent: 1, spawnIntervalMs: 0, lifetimeMultiplier: 2 },
+    reset() {
+      last = null;
+      bag = [];
+    },
+    onTap(x, y) {
+      last = { x, y };
+    },
+    nextSpawn(area, baseRadius, _seq) {
+      if (bag.length === 0) refill();
+      const [af, wf] = bag.pop()!;
+      const radius = Math.max(8, baseRadius * wf);
+      const minX = area.marginPx + radius;
+      const maxX = area.w - area.marginPx - radius;
+      const minY = area.topSafeMarginPx + radius;
+      const maxY = area.h - area.marginPx - radius;
+
+      const from = last ?? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+      let amplitude = Math.min(area.w, area.h) * af;
+
+      // Place the target at exactly `amplitude` from the previous tap point:
+      // sample random directions, shrinking the amplitude only if no direction
+      // keeps the target on screen (corner starts with the longest distance).
+      for (let attempt = 0; attempt < 8; attempt++) {
+        for (let i = 0; i < 24; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const x = from.x + Math.cos(angle) * amplitude;
+          const y = from.y + Math.sin(angle) * amplitude;
+          if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+            return { x, y, vy: 0, radius };
+          }
+        }
+        amplitude *= 0.82;
+      }
+      // Degenerate screen: fall back to a random legal position.
+      return { x: rand(minX, maxX), y: rand(minY, maxY), vy: 0, radius };
+    },
+    isOutOfBounds() {
+      return false;
+    },
+  };
+})();
+
 /** Only the variants that are actually playable; unbuilt ids from GameVariantId are absent (shadowed in the menu). */
 export const VARIANTS: Partial<Record<GameVariantId, GameVariant>> = {
   rising: RisingVariant,
   random: RandomPopVariant,
   grid: GridVariant,
   gonogo: GoNoGoVariant,
+  fitts: FittsVariant,
 };

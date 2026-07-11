@@ -68,6 +68,7 @@ export class GameSession {
     this.haptics = haptics;
     this.callbacks = callbacks;
     this.highScore = highScore;
+    variant.reset?.();
   }
 
   setDifficulty(d: DifficultyParams): void {
@@ -83,18 +84,19 @@ export class GameSession {
   }
 
   private trySpawn(now: number, w: number, h: number): void {
-    if (this.bubbles.length >= this.difficulty.maxConcurrent) return;
-    if (now - this.lastSpawnTime < this.difficulty.spawnIntervalMs) return;
+    const ov = this.variant.overrides;
+    if (this.bubbles.length >= (ov?.maxConcurrent ?? this.difficulty.maxConcurrent)) return;
+    if (now - this.lastSpawnTime < (ov?.spawnIntervalMs ?? this.difficulty.spawnIntervalMs)) return;
     this.lastSpawnTime = now;
     const area = this.playArea(w, h);
     const point = this.variant.nextSpawn(area, this.difficulty.targetRadiusPx, this.seq++);
     // Moving bubbles live until they traverse the screen (out-of-bounds counts
     // as the miss); only stationary ones use the fixed lifetime timer.
-    const r = this.difficulty.targetRadiusPx;
+    const r = point.radius ?? this.difficulty.targetRadiusPx;
     const lifetimeMs =
       point.vy !== 0
         ? ((point.y - area.topSafeMarginPx + r * 2) / this.difficulty.speedPxPerSec) * 1000 + 500
-        : this.difficulty.targetLifetimeMs;
+        : this.difficulty.targetLifetimeMs * (ov?.lifetimeMultiplier ?? 1);
     const b = new Bubble(point.x, point.y, r, point.color ?? pickColor(this.colorSeq++), now, lifetimeMs);
     b.vy = point.vy * this.difficulty.speedPxPerSec;
     b.distractor = !!point.distractor;
@@ -167,6 +169,7 @@ export class GameSession {
 
       if (this.motor.tremorFilterEnabled && this.isFilteredAsTremor(s)) continue;
 
+      this.variant.onTap?.(s.x, s.y);
       const candidate = this.findHitCandidate(s.x, s.y);
       if (candidate) {
         this.acceptTap(s.x, s.y, s.t);
